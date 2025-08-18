@@ -1,2 +1,2 @@
-def hello_sim():
-	return "Simulator ready!"
+# core/simulator.py
+
