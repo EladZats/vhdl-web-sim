@@ -1,20 +1,29 @@
-from core.circuit import Circuit
-from core.gates import AndGate, OrGate, NotGate
+from core.parser import NetlistParser
 
-# Create circuit
-c = Circuit("Demo")
+def run_demo():
+    net = """
+    CIRCUIT HalfAdder
+    INPUT a, b
+    OUTPUT sum, carry
+    GATE g1 XOR a b sum
+    GATE g2 AND a b carry
+    """
+    circuit = NetlistParser(net).parse()
 
-# Add IO
-c.add_input("a")
-c.add_input("b")
-c.add_output("out1")
-c.add_output("out2")
+    while True:
+        try:
+            raw = input("Enter inputs a,b (or 'q' to quit): ")
+            if raw.lower() == "q":
+                break
 
-# Add gates
-c.add_gate(AndGate("g1", ["a", "b"], "out1"))
-c.add_gate(OrGate("g2", ["a", "b"], "out2"))
+            a_str, b_str = raw.strip().split(",")
+            a, b = int(a_str), int(b_str)
 
-# Simulate case
-c.set_inputs({"a": 1, "b": 0})
-c.evaluate()
-print(c.get_outputs())   # {'out1': 0, 'out2': 1}
+            circuit.set_inputs({"a": a, "b": b})
+            circuit.evaluate()
+            print("Outputs:", circuit.get_outputs())
+        except Exception as e:
+            print("Error:", e)
+
+if __name__ == "__main__":
+    run_demo()
