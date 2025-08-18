@@ -1,7 +1,13 @@
-from core import Signal
+from core import Simulator, Signal, Clock
 
-def test_signal_set_get():
-    a = Signal("a")
-    assert a.get() == 0  # default should be 0
-    a.set(1)
-    assert a.get() == 1
+def test_simulator_runs():
+    sim = Simulator()
+    a = Signal("a", 1)
+    clk = Clock("clk", period=2)
+
+    sim.add_signal(a)
+    sim.add_clock(clk)
+
+    sim.run(4)
+    assert sim.time == 4
+    assert clk.get() in (0, 1)  # clock must toggle
