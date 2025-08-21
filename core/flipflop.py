@@ -4,11 +4,11 @@ from .clock import Clock
 
 class DFlipFlop:
     """Positive-edge triggered D Flip-Flop with delayed commit.
-    
+
     Behavior:
       - On each tick(), first commit the previously scheduled value into Q.
-      - If a rising edge (0->1) is detected on CLK this tick, sample D into next_q.
-      - Effect: Q updates one simulation step after the rising edge.
+      - If a rising edge (0->1) is detected on CLK this tick, sample D into _next_q.
+      - Effect: Q updates one simulation step after the rising edge (delayed commit).
     """
 
     def __init__(self, d: Signal, clk: Clock, q: Signal, reset: int = 0):
@@ -24,6 +24,7 @@ class DFlipFlop:
 
         # Start in a known state: Q=0
         self.q.set(0)
+
         # The value to be committed to Q on the next tick
         self._next_q = 0
 
@@ -31,7 +32,7 @@ class DFlipFlop:
         self._prev_clk = self.clk.get()
 
     def tick(self):
-        """Advance one simulation step for the FF."""
+        """Advance one simulation step for the FF (delayed commit)."""
         # 1) Commit previously scheduled value to Q
         self.q.set(self._next_q)
 
@@ -43,6 +44,12 @@ class DFlipFlop:
 
         # 3) Update previous clock state
         self._prev_clk = clk_now
+
+    def flush(self):
+        """Commit the pending _next_q into Q without advancing time.
+        Used at the end of a run() so that final state reflects last captured D.
+        """
+        self.q.set(self._next_q)
 
     def reset_ff(self):
         """Asynchronous reset: force Q to 0 now and clear the next scheduled value."""

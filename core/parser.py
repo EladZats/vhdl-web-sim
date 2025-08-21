@@ -36,6 +36,8 @@ from typing import List
 
 from core.circuit import Circuit
 from core.signal import Signal
+from core.clock import Clock
+from core.flipflop import DFlipFlop
 from core.gates import AndGate, OrGate, NotGate, XorGate
 
 
@@ -95,6 +97,14 @@ class NetlistParser:
             elif head_u == "GATE":
                 self._require_circuit(lineno)
                 self._parse_gate(lineno, rest)
+
+            elif head_u == "CLOCK":
+                self._require_circuit(lineno)
+                self._parse_clock(lineno, rest)
+
+            elif head_u == "DFF":
+                self._require_circuit(lineno)
+                self._parse_dff(lineno, rest)
 
             else:
                 raise NetlistParseError(f"[line {lineno}] Unknown directive '{head}'")
@@ -202,3 +212,66 @@ class NetlistParser:
             gate = gate_cls(gate_name, [in1, in2], out)
 
         self.circuit.add_gate(gate)
+
+    def _parse_clock(self, lineno: int, parts: List[str]):
+        """
+        CLOCK <name> [PERIOD <int>] [DUTY <float>]
+        """
+        if not parts:
+            raise NetlistParseError(f"[line {lineno}] CLOCK requires a name.")
+        
+        name = parts.pop(0)
+        self._assert_name(name, lineno)
+
+        # Parse optional arguments
+        kwargs = {}
+        while parts:
+            key = parts.pop(0).upper()
+            if not parts:
+                raise NetlistParseError(f"[line {lineno}] Expected value for {key}")
+            val_str = parts.pop(0)
+            
+            if key == "PERIOD":
+                try:
+                    kwargs['period'] = int(val_str)
+                except ValueError:
+                    raise NetlistParseError(f"[line {lineno}] PERIOD must be an integer.")
+            elif key == "DUTY":
+                try:
+                    kwargs['duty_cycle'] = float(val_str)
+                except ValueError:
+                    raise NetlistParseError(f"[line {lineno}] DUTY must be a float.")
+            else:
+                raise NetlistParseError(f"[line {lineno}] Unknown CLOCK parameter '{key}'")
+
+        clock = Clock(name, **kwargs)
+        self.circuit.add_clock(clock)
+
+    def _parse_dff(self, lineno: int, parts: List[str]):
+        """
+        DFF <ff_name> <d_in> <clk_in> <q_out>
+        """
+        if len(parts) != 4:
+            raise NetlistParseError(f"[line {lineno}] DFF requires 4 tokens: <name> <d> <clk> <q>")
+        
+        ff_name, d_name, clk_name, q_name = parts
+        self._assert_name(ff_name, lineno)
+        self._assert_name(d_name, lineno)
+        self._assert_name(clk_name, lineno)
+        self._assert_name(q_name, lineno)
+
+        # Ensure signals exist
+        self._ensure_signal(d_name)
+        self._ensure_signal(q_name)
+
+        # Find the clock object
+        clock_obj = next((c for c in self.circuit.clocks if c.name == clk_name), None)
+        if clock_obj is None:
+            raise NetlistParseError(f"[line {lineno}] DFF references unknown CLOCK '{clk_name}'. Define it first.")
+
+        d_sig = self.circuit.signals[d_name]
+        q_sig = self.circuit.signals[q_name]
+
+        # Create and add the DFF
+        ff = DFlipFlop(d=d_sig, clk=clock_obj, q=q_sig)
+        self.circuit.add_flipflop(ff)

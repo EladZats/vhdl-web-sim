@@ -1,8 +1,10 @@
 from .signal import Signal
+from .clock import Clock
+from .flipflop import DFlipFlop
 
 
 class Circuit:
-    """Holds signals and gates, lets you evaluate once per 'combinational step'."""
+    """Holds signals, gates, and sequential elements for a digital circuit."""
 
     def __init__(self, name: str):
         self.name = name
@@ -10,6 +12,8 @@ class Circuit:
         self.inputs: list[Signal] = []
         self.outputs: list[Signal] = []
         self.gates = []
+        self.clocks: list[Clock] = []
+        self.flipflops: list[DFlipFlop] = []
 
     def add_input(self, name: str):
         sig = Signal(name)
@@ -23,6 +27,19 @@ class Circuit:
 
     def add_gate(self, gate):
         self.gates.append(gate)
+
+    def add_clock(self, clock: Clock):
+        """Add a clock source to the circuit."""
+        self.clocks.append(clock)
+        # A clock is also a signal source.
+        self.signals[clock.name] = clock
+
+    def add_flipflop(self, ff: DFlipFlop):
+        """Add a flip-flop to the circuit."""
+        self.flipflops.append(ff)
+        # The output of a FF is a signal within the circuit.
+        if ff.q.name not in self.signals:
+            self.signals[ff.q.name] = ff.q
 
     def set_inputs(self, values: dict[str, int]):
         for k, v in values.items():
