@@ -1,103 +1,52 @@
-from .signal import Signal
+from __future__ import annotations
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .circuit import Circuit
 
 
-class LogicGate:
-    """Base class for logic gates. Supports inputs/outputs as Signal or str (signal name)."""
+class Gate:
+    """Base class for all logic gates."""
 
-    def __init__(self, name, inputs, output):
+    def __init__(self, name: str, inputs: List[str], output: str, circuit: Circuit):
         self.name = name
-        self.inputs = inputs if isinstance(inputs, list) else [inputs]
-        self.output = output  # Signal or str
+        self.input_names = inputs
+        self.output_name = output
+        self.circuit = circuit
 
-    # helpers
-    @staticmethod
-    def _get(ref, signals):
-        """Read value from a Signal or from signals dict using name."""
-        if isinstance(ref, Signal):
-            return ref.get()
-        assert signals is not None, "signals dict is required when refs are names"
-        return signals[ref].get()
-
-    @staticmethod
-    def _set(ref, val, signals):
-        """Write value to a Signal or to signals dict using name."""
-        if isinstance(ref, Signal):
-            ref.set(val)
-            return
-        assert signals is not None, "signals dict is required when refs are names"
-        signals[ref].set(val)
-
-    def evaluate(self, signals=None):
-        """Subclasses implement logic here. 'signals' is required if refs are names."""
+    def update(self):
         raise NotImplementedError
 
-    # keep compatibility with tests that call g.eval()
-    def eval(self):
-        self.evaluate(None)
-
     def __repr__(self):
-        ins = ",".join([i.name if isinstance(i, Signal) else str(i) for i in self.inputs])
-        out = self.output.name if isinstance(self.output, Signal) else str(self.output)
-        return f"{self.__class__.__name__}({self.name}: {ins} -> {out})"
+        return f"{type(self).__name__}({self.name})"
 
 
-class AndGate(LogicGate):
-    def __init__(self, name, in1, in2=None, out=None):
-        # Support both forms:
-        #   AndGate(name, a, b, out)           (Signals)
-        #   AndGate(name, ["a","b"], "out")    (names)
-        if isinstance(in1, list):
-            inputs, output = in1, in2
-        else:
-            inputs, output = [in1, in2], out
-        super().__init__(name, inputs, output)
-
-    def evaluate(self, signals=None):
-        a = self._get(self.inputs[0], signals)
-        b = self._get(self.inputs[1], signals)
-        self._set(self.output, a & b, signals)
+class AndGate(Gate):
+    def update(self):
+        in1_val = self.circuit.signals[self.input_names[0]].get_value() or 0
+        in2_val = self.circuit.signals[self.input_names[1]].get_value() or 0
+        val = int(in1_val and in2_val)
+        self.circuit.signals[self.output_name].set_value(val)
 
 
-class OrGate(LogicGate):
-    def __init__(self, name, in1, in2=None, out=None):
-        if isinstance(in1, list):
-            inputs, output = in1, in2
-        else:
-            inputs, output = [in1, in2], out
-        super().__init__(name, inputs, output)
-
-    def evaluate(self, signals=None):
-        a = self._get(self.inputs[0], signals)
-        b = self._get(self.inputs[1], signals)
-        self._set(self.output, a | b, signals)
+class OrGate(Gate):
+    def update(self):
+        in1_val = self.circuit.signals[self.input_names[0]].get_value() or 0
+        in2_val = self.circuit.signals[self.input_names[1]].get_value() or 0
+        val = int(in1_val or in2_val)
+        self.circuit.signals[self.output_name].set_value(val)
 
 
-class NotGate(LogicGate):
-    def __init__(self, name, in1, out=None):
-        if isinstance(in1, list):
-            inputs, output = in1, out
-        else:
-            inputs, output = [in1], out
-        super().__init__(name, inputs, output)
-
-    def evaluate(self, signals=None):
-        a = self._get(self.inputs[0], signals)
-        self._set(self.output, 1 - a, signals)
+class XorGate(Gate):
+    def update(self):
+        in1_val = self.circuit.signals[self.input_names[0]].get_value() or 0
+        in2_val = self.circuit.signals[self.input_names[1]].get_value() or 0
+        val = int(in1_val ^ in2_val)
+        self.circuit.signals[self.output_name].set_value(val)
 
 
-class XorGate(LogicGate):
-    def __init__(self, name, in1, in2=None, out=None):
-        if isinstance(in1, list):
-            inputs, output = in1, in2
-        else:
-            inputs, output = [in1, in2], out
-        super().__init__(name, inputs, output)
-
-    def evaluate(self, signals=None):
-        a = self._get(self.inputs[0], signals)
-        b = self._get(self.inputs[1], signals)
-        self._set(self.output, a ^ b, signals)
-
-
-# Alias to preserve any old imports expecting 'Gate'
-Gate = LogicGate
+class NotGate(Gate):
+    def update(self):
+        in_val = self.circuit.signals[self.input_names[0]].get_value() or 0
+        val = int(not in_val)
+        self.circuit.signals[self.output_name].set_value(val)

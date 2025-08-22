@@ -1,7 +1,9 @@
-from .signal import Signal
-from .gates import LogicGate, Gate, AndGate, OrGate, NotGate, XorGate
 from .circuit import Circuit
-from .simulator import Simulator, Clock
+from .gates import Gate, AndGate, OrGate, NotGate, XorGate
+from .signal import Signal
+from .clock import Clock
+from .flipflop import DFlipFlop
+from .parser import NetlistParser, NetlistParseError
 
 __all__ = [
     "Signal",
@@ -14,4 +16,7 @@ __all__ = [
     "Circuit",
     "Simulator",
     "Clock",
+    "DFlipFlop",
+    "NetlistParser",
+    "NetlistParseError",
 ]

@@ -1,61 +1,60 @@
 from .signal import Signal
 from .clock import Clock
+from typing import Dict
 
 
 class DFlipFlop:
-    """Positive-edge triggered D Flip-Flop with delayed commit.
-
-    Behavior:
-      - On each tick(), first commit the previously scheduled value into Q.
-      - If a rising edge (0->1) is detected on CLK this tick, sample D into _next_q.
-      - Effect: Q updates one simulation step after the rising edge (delayed commit).
+    """
+    Represents a D-type flip-flop.
+    On the clock's rising edge, the output Q gets the value of the input D.
     """
 
-    def __init__(self, d: Signal, clk: Clock, q: Signal, reset: int = 0):
-        """
-        :param d: Data input signal
-        :param clk: Clock signal (rising-edge detected)
-        :param q: Output signal driven by the FF
-        :param reset: Initial reset flag (if 1, start with Q=0; if 0, also start at Q=0 by default)
-        """
+    def __init__(self, d: Signal, clk: Clock, q: Signal, name: str = "dff"):
+        self.name = name
         self.d = d
         self.clk = clk
         self.q = q
 
-        # Start in a known state: Q=0
-        self.q.set(0)
+        # State for edge detection. Initialize to None to handle the first cycle.
+        self.prev_clk_state = None
 
-        # The value to be committed to Q on the next tick
-        self._next_q = 0
+        # Initialize output to a known state (e.g., 0)
+        self.q.set_value(0)
 
-        # Track previous clock value for edge detection
-        self._prev_clk = self.clk.get()
-
-    def tick(self):
-        """Advance one simulation step for the FF (delayed commit)."""
-        # 1) Commit previously scheduled value to Q
-        self.q.set(self._next_q)
-
-        # 2) Edge detection and sample D on rising edge
-        clk_now = self.clk.get()
-        if self._prev_clk == 0 and clk_now == 1:
-            # Schedule D to appear on Q at the NEXT tick
-            self._next_q = self.d.get()
-
-        # 3) Update previous clock state
-        self._prev_clk = clk_now
-
-    def flush(self):
-        """Commit the pending _next_q into Q without advancing time.
-        Used at the end of a run() so that final state reflects last captured D.
+    def update(self):
         """
-        self.q.set(self._next_q)
+        This method should be called at each time step of the simulation.
+        It checks for a rising edge and updates the output accordingly.
+        """
+        current_clk_state = self.clk.get_value()
 
-    def reset_ff(self):
-        """Asynchronous reset: force Q to 0 now and clear the next scheduled value."""
-        self._next_q = 0
-        self.q.set(0)
+        # A rising edge occurs if the previous state was 0 and the current is 1.
+        # self.prev_clk_state is not None ensures we don't trigger on the very first step if clock starts at 1.
+        if self.prev_clk_state == 0 and current_clk_state == 1:
+            # Sample the input D and update the output Q
+            self.q.set_value(self.d.get_value())
 
-    # Optional alias if you prefer .reset()
-    def reset(self):
-        self.reset_ff()
+        # Crucially, update the previous state for the next time step's check.
+        self.prev_clk_state = current_clk_state
+
+    def __repr__(self):
+        return f"DFF(D={self.d.name}, CLK={self.clk.name}, Q={self.q.name})"
+
+
+def simulate(self, steps: int, inputs_map: Dict[str, str]):
+    # ... (setup logic) ...
+
+    for t in range(steps):
+        # 1. Update all clocks to set their value for this time step
+        for clock in self.clocks:
+            clock.update(t)
+
+        # 2. Update all gates and flip-flops
+        #    The DFF's update method will handle the clock edge detection
+        for _ in range(len(self.gates) + len(self.flipflops)):  # Iterate enough times
+            for gate in self.gates:
+                gate.update()
+            # No need for a separate flipflop loop if they are added to gates list
+
+        # 3. Record waveforms
+        # ... (rest of the simulation) ...

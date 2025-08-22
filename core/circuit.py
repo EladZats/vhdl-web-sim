@@ -1,71 +1,68 @@
+from __future__ import annotations
+from typing import Dict, List
+
 from .signal import Signal
+from .gates import Gate
 from .clock import Clock
 from .flipflop import DFlipFlop
-from .simulator import Simulator
 
 
 class Circuit:
-    """Holds signals, gates, and sequential elements for a digital circuit."""
+    """Represents a digital logic circuit."""
 
-    def __init__(self, name: str = "Unnamed"):
+    def __init__(self, name: str):
         self.name = name
-        self.signals: dict[str, Signal] = {}
-        self.inputs: list[Signal] = []
-        self.outputs: list[Signal] = []
-        self.gates = []
-        self.clocks: list[Clock] = []
-        self.flipflops: list[DFlipFlop] = []
+        self.signals: Dict[str, Signal] = {}
+        self.inputs: List[Signal] = []
+        self.outputs: List[Signal] = []
+        self.gates: List[Gate] = []
+        self.clocks: List[Clock] = []
+        self.flipflops: List[DFlipFlop] = []
 
     # ------------------- Add elements -------------------
 
     def add_input(self, name: str):
-        sig = Signal(name)
-        self.signals[name] = sig
-        self.inputs.append(sig)
+        # This is one source of the error. It must use 'value'.
+        signal = Signal(name=name, value=0)
+        self.signals[name] = signal
+        self.inputs.append(signal)
 
     def add_output(self, name: str):
-        sig = Signal(name)
-        self.signals[name] = sig
-        self.outputs.append(sig)
+        # This is another source of the error. It must use 'value'.
+        signal = Signal(name=name, value=0)
+        self.signals[name] = signal
+        self.outputs.append(signal)
 
-    def add_gate(self, gate):
+    def add_gate(self, gate: Gate):
         self.gates.append(gate)
 
     def add_clock(self, clock: Clock):
-        """Add a clock source to the circuit."""
         self.clocks.append(clock)
-        # A clock is also a signal source
-        self.signals[clock.name] = clock
 
     def add_flipflop(self, ff: DFlipFlop):
-        """Add a flip-flop to the circuit."""
         self.flipflops.append(ff)
-        # The output of a FF is also a signal
-        if ff.q.name not in self.signals:
-            self.signals[ff.q.name] = ff.q
 
-    # ------------------- Simulation helpers -------------------
+    def simulate(self, steps: int, inputs_map: Dict[str, str]):
+        for signal in self.signals.values():
+            signal.set_value(0)
 
-    def set_inputs(self, values: dict[str, int]):
-        for k, v in values.items():
-            if k not in self.signals:
-                raise KeyError(f"Unknown signal '{k}'")
-            self.signals[k].set(v)
+        waveforms = {name: [] for name in self.signals}
 
-    def evaluate(self):
-        for gate in self.gates:
-            gate.evaluate(self.signals)
+        for t in range(steps):
+            for signal in self.inputs:
+                if signal.name in inputs_map and t < len(inputs_map[signal.name]):
+                    signal.set_value(int(inputs_map[signal.name][t]))
+            for clock in self.clocks:
+                clock.update(t)
 
-    def get_outputs(self) -> dict[str, int]:
-        return {sig.name: sig.get() for sig in self.outputs}
+            for ff in self.flipflops:
+                ff.update()
 
-    def build_simulator(self) -> "Simulator":
-        """Create a Simulator and register all signals, clocks, and flip-flops."""
-        sim = Simulator()
-        for sig in self.signals.values():
-            sim.add_signal(sig)
-        for clk in self.clocks:
-            sim.add_clock(clk)
-        for ff in self.flipflops:
-            sim.add_flipflop(ff)
-        return sim
+            for _ in range(len(self.gates) + 1):
+                for gate in self.gates:
+                    gate.update()
+
+            for name, signal in self.signals.items():
+                waveforms[name].append(signal.get_value())
+
+        return waveforms

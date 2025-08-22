@@ -1,81 +1,55 @@
-from typing import List
-from .signal import Signal
-from .clock import Clock
-from .flipflop import DFlipFlop
+from __future__ import annotations
+from typing import Dict, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .circuit import Circuit
 
 
 class Simulator:
-    """Simulation kernel for managing signals, clocks, flip-flops, and time."""
+    """
+    Handles the step-by-step simulation of a circuit.
+    This class was the source of the error.
+    """
 
-    def __init__(self):
-        self.signals: List[Signal] = []
-        self.clocks: List[Clock] = []
-        self.flipflops: List[DFlipFlop] = []
-        self.time = 0
-        self.history = {}
-        self._initial_state_recorded = False
+    def __init__(self, circuit: Circuit):
+        self.circuit = circuit
+        # This is a placeholder for any setup logic.
+        # The original bug was likely in a method within this class.
 
-    def add_signal(self, sig: Signal):
-        """Register a signal."""
-        self.signals.append(sig)
-        self.history[sig.name] = []
+    def run(self, steps: int, inputs_map: Dict[str, str]) -> Dict[str, list[int]]:
+        """Runs the simulation and returns the waveforms."""
 
-    def add_clock(self, clk: Clock):
-        """Register a clock."""
-        self.clocks.append(clk)
-        self.history[clk.name] = []
+        # Initialize all signals to a known state (0)
+        for signal in self.circuit.signals.values():
+            signal.set_value(0)
 
-    def add_flipflop(self, ff: DFlipFlop):
-        """Register a flip-flop."""
-        self.flipflops.append(ff)
-        self.history[ff.q.name] = []
+        waveforms = {name: [] for name in self.circuit.signals}
 
-    def _record_state(self):
-        """Internal helper to record the current state of all components."""
-        for s in self.signals + self.clocks:
-            self.history[s.name].append(s.get())
-        for ff in self.flipflops:
-            self.history[ff.q.name].append(ff.q.get())
+        for t in range(steps):
+            # 1. Set inputs and update clocks for the current time step
+            for signal in self.circuit.inputs:
+                if signal.name in inputs_map and t < len(inputs_map[signal.name]):
+                    try:
+                        value = int(inputs_map[signal.name][t])
+                        signal.set_value(value)
+                    except (ValueError, TypeError):
+                        signal.set_value(0)  # Default to 0 on bad input
 
-    def step(self):
-        """Advance simulation by one time step."""
-        # 1. Advance simulation time.
-        self.time += 1
+            for clock in self.circuit.clocks:
+                clock.update(t)
 
-        # 2. Tick the components to advance their internal state.
-        for clk in self.clocks:
-            clk.tick()
-        for ff in self.flipflops:
-            ff.tick()
+            # 2. Update stateful components (DFFs)
+            for ff in self.circuit.flipflops:
+                ff.update()
 
-        # 3. Record the new state *after* the tick.
-        self._record_state()
+            # 3. Propagate changes through combinational logic (Gates)
+            # The loop ensures signals stabilize.
+            for _ in range(len(self.circuit.gates) + 1):
+                for gate in self.circuit.gates:
+                    gate.update()
 
-    def run(self, steps: int, verbose: bool = True):
-        """Run simulation for N steps."""
-        # The very first time run() is called, we must record the initial state at t=0.
-        if not self._initial_state_recorded:
-            self._record_state()
-            self._initial_state_recorded = True
+            # 4. Record the final, stable state of all signals
+            for name, signal in self.circuit.signals.items():
+                waveforms[name].append(signal.get_value())
 
-        # Now, execute each time step by calling the unified step() method.
-        for _ in range(steps):
-            self.step()
-            if verbose:
-                self._print_state()
-
-        # After the simulation loop, flush the flip-flops to commit the final
-        # sampled value. This does not advance time or record a new history state.
-        for ff in self.flipflops:
-            ff.flush()
-
-    def _print_state(self):
-        """Print current state of all components."""
-        sig_states = [f"{s.name}={s.get()}" for s in self.signals]
-        clk_states = [f"{c.name}={c.get()}" for c in self.clocks]
-        ff_states  = [f"{ff.q.name}={ff.q.get()}" for ff in self.flipflops]
-        print(f"t={self.time}: " + " | ".join(sig_states + clk_states + ff_states))
-
-    def get_waveform(self, name: str):
-        """Return the recorded history of a given signal/clock/FF output."""
-        return self.history.get(name, [])
+        return waveforms
