@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useState, useEffect } from 'react';
 
-export default function WaveformViewer({ waveforms, steps }) {
+export default function WaveformViewer({ waveforms }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [hoverX, setHoverX] = useState(null);
@@ -9,116 +9,160 @@ export default function WaveformViewer({ waveforms, steps }) {
     if (!waveforms || Object.keys(waveforms).length === 0) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const devicePixelRatio = window.devicePixelRatio || 1;
+    const ctx = canvas.getContext('2d');
 
-    // --- Dimensions ---
+    // Set dimensions with extra space for time axis
     const rowHeight = 40;
-    const padding = 120; // More space for cleaner text
-    const actualSteps = waveforms[Object.keys(waveforms)[0]].length;
-    const stepWidth = 50; // Wider steps
-
-    const canvasWidth = padding + actualSteps * stepWidth + 50;
-    const canvasHeight = rowHeight * (Object.keys(waveforms).length + 2);
-
-    // Set canvas dimensions for High-DPI rendering
-    canvas.width = canvasWidth * devicePixelRatio;
-    canvas.height = canvasHeight * devicePixelRatio;
-    canvas.style.width = `${canvasWidth}px`;
-    canvas.style.height = `${canvasHeight}px`;
-
-    // Scale context for crisp rendering
-    ctx.scale(devicePixelRatio, devicePixelRatio);
-
-    // --- Modern Styling ---
-    ctx.fillStyle = "#222222"; // A more neutral dark gray background
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    ctx.lineJoin = "round"; // Smoother lines
-    ctx.lineCap = "round";
-
+    const padding = 160; // Increased padding for value display
+    const stepWidth = 40;
     const signals = Object.keys(waveforms);
+    const steps = waveforms[signals[0]].length;
+    const width = padding + (steps * stepWidth);
+    const height = (signals.length + 1) * rowHeight + 30; // Extra height for time axis
 
-    // Draw each signal waveform
-    signals.forEach((signal, row) => {
-      const values = waveforms[signal];
-      const yMid = rowHeight * (row + 1);
+    // Configure canvas for high DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
 
-      // Signal Name
-      ctx.fillStyle = "#cbd5e0"; // Lighter text
-      ctx.font = "14px 'SF Mono', 'Fira Code', monospace";
-      ctx.textAlign = "left";
-      ctx.fillText(signal, 15, yMid - 10);
+    // Clear canvas
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, width, height);
 
-      // Waveform Line
-      ctx.strokeStyle = signal === "y" ? "#48bb78" : "#4299e1"; // Vibrant green and blue
-      ctx.lineWidth = 2.5;
+    // Draw grid lines
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 1;
+    
+    // Vertical grid lines
+    for (let i = 0; i <= steps; i++) {
+      const x = padding + (i * stepWidth);
       ctx.beginPath();
-      ctx.moveTo(padding, yMid - values[0] * 15);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height - rowHeight);
+      ctx.stroke();
+    }
 
-      values.forEach((v, i) => {
-        const x = padding + i * stepWidth;
-        const y = yMid - v * 15;
-        if (i > 0) {
-          const prev_y = yMid - values[i - 1] * 15;
-          ctx.lineTo(x, prev_y);
+    // Horizontal grid lines for 0 and 1 levels
+    signals.forEach((_, index) => {
+      const y = (index + 1) * rowHeight;
+      
+      // Draw 0-level line (lighter)
+      ctx.strokeStyle = '#333333';
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+
+      // Draw 1-level line (lighter)
+      ctx.strokeStyle = '#333333';
+      ctx.beginPath();
+      ctx.moveTo(padding, y - 20);
+      ctx.lineTo(width, y - 20);
+      ctx.stroke();
+    });
+
+    // Draw time axis at the bottom with aligned units
+    ctx.strokeStyle = '#4a5568';
+    ctx.fillStyle = '#8b9cb0';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    
+    for (let i = 0; i < steps; i++) {
+      const x = padding + (i * stepWidth);
+      // Draw tick mark
+      ctx.beginPath();
+      ctx.moveTo(x, height - 30);
+      ctx.lineTo(x, height - 25);
+      ctx.stroke();
+      // Draw number aligned with grid line
+      ctx.fillText(i.toString(), x + stepWidth/2, height - 20);
+    }
+
+    // Draw signals with current values on the left
+    signals.forEach((signal, index) => {
+      const y = (index + 1) * rowHeight;
+      const values = waveforms[signal];
+      const currentValue = values[0]; // Get initial value
+
+      // Draw signal name
+      ctx.fillStyle = '#8b9cb0';
+      ctx.font = '14px monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(signal, 10, y - 10);
+
+      // Draw current value box on the left
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(padding - 45, y - 20, 30, 20);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(currentValue.toString(), padding - 30, y - 10);
+
+      // Draw waveform
+      ctx.beginPath();
+      ctx.strokeStyle = signal.startsWith('clk') ? '#4ade80' : '#60a5fa';
+      ctx.lineWidth = 2;
+
+      let lastValue = values[0];
+      ctx.moveTo(padding, y - (lastValue * 20));
+
+      values.forEach((value, i) => {
+        const x = padding + (i * stepWidth);
+        
+        // Draw vertical transition if value changed
+        if (value !== lastValue) {
+          ctx.lineTo(x, y - (lastValue * 20));
+          ctx.lineTo(x, y - (value * 20));
         }
-        ctx.lineTo(x, y);
-        ctx.lineTo(x + stepWidth, y);
+        
+        // Draw horizontal line
+        ctx.lineTo(x + stepWidth, y - (value * 20));
+        lastValue = value;
       });
       ctx.stroke();
     });
 
-    // Time axis with subtle grid lines
-    const axisY = rowHeight * (signals.length + 1);
-    ctx.strokeStyle = "#4a5568"; // Gray grid lines
-    ctx.lineWidth = 1;
+    // Draw hover indicator and values
+    if (hoverX !== null) {
+      const step = Math.floor((hoverX - padding) / stepWidth);
+      if (step >= 0 && step < steps) {
+        // Draw red vertical line
+        const x = padding + (step * stepWidth);
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height - 30); // Stop above time axis
+        ctx.stroke();
 
-    for (let i = 0; i < actualSteps; i++) {
-      const x = padding + i * stepWidth + stepWidth / 2;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, axisY);
-      ctx.stroke();
-
-      ctx.fillStyle = "#a0aec0";
-      ctx.textAlign = "center";
-      ctx.fillText(i, x, axisY + 15);
-    }
-
-    // Modern Hover bar and values
-    if (hoverX !== null && hoverX >= padding) {
-      let col = Math.floor((hoverX - padding) / stepWidth);
-      col = Math.max(0, Math.min(col, actualSteps - 1));
-
-      // Snapped Red Bar
-      const barX = padding + col * stepWidth + stepWidth / 2;
-      ctx.strokeStyle = "rgba(239, 68, 68, 0.7)"; // Softer red
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(barX, 0);
-      ctx.lineTo(barX, canvasHeight);
-      ctx.stroke();
-
-      // Show values
-      signals.forEach((signal, row) => {
-        const value = waveforms[signal][col];
-        if (value !== undefined) {
-          const yMid = rowHeight * (row + 1);
-          ctx.fillStyle = "#f6e05e"; // Bright yellow
-          ctx.font = "bold 16px 'SF Mono', 'Fira Code', monospace";
-          ctx.textAlign = "right";
-          ctx.fillText(value, padding - 20, yMid - 10);
-        }
-      });
+        // Update values on the left
+        signals.forEach((signal, index) => {
+          const y = (index + 1) * rowHeight;
+          const value = waveforms[signal][step];
+          
+          // Clear previous value
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(padding - 45, y - 20, 30, 20);
+          
+          // Draw new value
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '12px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(value.toString(), padding - 30, y - 10);
+        });
+      }
     }
   }, [waveforms, hoverX]);
 
   const handleMouseMove = (e) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const canvasX = e.clientX - rect.left + container.scrollLeft;
-    setHoverX(canvasX);
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left + containerRef.current.scrollLeft;
+    setHoverX(x);
   };
 
   const handleMouseLeave = () => {
@@ -126,20 +170,13 @@ export default function WaveformViewer({ waveforms, steps }) {
   };
 
   return (
-    <div
+    <div 
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{
-        border: "1px solid #2d3748",
-        width: "100%",
-        overflowX: "auto",
-        cursor: "crosshair",
-        backgroundColor: "#222222", // A more neutral dark gray background
-        borderRadius: "8px",
-      }}
+      className="bg-gray-900 rounded-lg p-4 overflow-auto"
     >
-      <canvas ref={canvasRef} />
+      <canvas ref={canvasRef} className="min-w-full" />
     </div>
   );
 }

@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* --- Custom Keyword Highlighting Colors --- */
+/* Using !important ensures these styles override the theme */
+.cm-editor .cm-keyword-circuit { color: #c586c0 !important; }   /* Magenta */
+.cm-editor .cm-keyword-io { color: #9cdcfe !important; }          /* Light Blue */
+.cm-editor .cm-keyword-signal { color: #4ec9b0 !important; }      /* Teal */
+.cm-editor .cm-keyword-component { color: #dcdcaa !important; }  /* Yellow for GATE and DFF */
+.cm-editor .cm-keyword-operator { color: #d8a0df !important; }   /* Light Purple */
+.cm-editor .cm-keyword-parameter { color: #4fc1ff !important; }  /* Bright Blue */
+
+/* --- Set a uniform gray background for the Netlist Editor --- */
+.cm-editor {
+  background-color: #1f2937 !important; /* This is the same color as bg-gray-800 */
+}

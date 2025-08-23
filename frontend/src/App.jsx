@@ -1,10 +1,13 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Play, Settings, HelpCircle, Copy, AlertTriangle } from "lucide-react";
-import WaveformViewer from "./WaveformViewer.jsx";
-import Editor from "react-simple-code-editor";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { Play, Settings, HelpCircle, Library, AlertTriangle, Dices, Copy } from "lucide-react";
+import NetlistEditor from './NetlistEditor';
+import WaveformViewer from './WaveformViewer';
 import { highlight, languages } from "prismjs/components/prism-core";
 import "prismjs/themes/prism-tomorrow.css";
 import getCaretCoordinates from "textarea-caret";
+import { StreamLanguage } from '@codemirror/language';
+import { vhdl } from '@codemirror/legacy-modes/mode/vhdl';
+import { autocompletion } from '@codemirror/autocomplete';
 
 // --- Live Netlist Validator (based on your Python parser) ---
 const validateNetlist = (text) => {
@@ -99,16 +102,151 @@ const getSuggestions = (line, word, declaredSignals) => {
 };
 
 
+// --- Custom Syntax Highlighting & Autocompletion ---
+
+// 1. Define all keywords in lowercase for the highlighter
+const customKeywords = { ...vhdl.keywords, dff: true };
+
+// 2. Create a new language object that forces case-insensitivity
+const customVHDL = {
+  ...vhdl,
+  keywords: customKeywords,
+  ignoreCase: true, // Explicitly tell the highlighter to ignore case
+};
+
+// 3. Define the list of words for autocompletion (can be uppercase for readability)
+const completionKeywords = [
+  "CIRCUIT", "INPUT", "OUTPUT", "SIGNAL", "GATE", "CLOCK", "DFF",
+  "AND", "OR", "NOT", "XOR", "PERIOD", "DUTY"
+].map(label => ({ label, type: "keyword" }));
+
+// 4. Create a custom completion source function
+const myCompletions = (context) => {
+  let word = context.matchBefore(/\w*/);
+  if (word.from == word.to && !context.explicit) {
+    return null;
+  }
+  return {
+    from: word.from,
+    options: completionKeywords
+  };
+};
+
+
+// --- Catalog of Netlist Templates ---
+const TEMPLATES = [
+  {
+    label: "Basic AND Gate",
+    value: `CIRCUIT and_gate
+INPUT a
+INPUT b
+OUTPUT y
+GATE g1 AND a b y
+`,
+  },
+  {
+    label: "Basic OR Gate",
+    value: `CIRCUIT or_gate
+INPUT a
+INPUT b
+OUTPUT y
+GATE g1 OR a b y
+`,
+  },
+  {
+    label: "NOT Gate",
+    value: `CIRCUIT not_gate
+INPUT a
+OUTPUT y
+GATE g1 NOT a y
+`,
+  },
+  {
+    label: "NAND Gate",
+    value: `CIRCUIT nand_gate
+INPUT a
+INPUT b
+OUTPUT y
+GATE g1 NAND a b y
+`,
+  },
+  {
+    label: "NOR Gate",
+    value: `CIRCUIT nor_gate
+INPUT a
+INPUT b
+OUTPUT y
+GATE g1 NOR a b y
+`,
+  },
+  {
+    label: "XOR Gate",
+    value: `CIRCUIT xor_gate
+INPUT a
+INPUT b
+OUTPUT y
+GATE g1 XOR a b y
+`,
+  },
+  {
+    label: "XNOR Gate",
+    value: `CIRCUIT xnor_gate
+INPUT a
+INPUT b
+OUTPUT y
+GATE g1 XNOR a b y
+`,
+  },
+  {
+    label: "D Flip-Flop",
+    value: `CIRCUIT dff_circuit
+INPUT d
+INPUT clk
+OUTPUT q
+DFF dff1 D dff_clk q
+CLOCK clk PERIOD 10 DUTY 50
+`,
+  },
+  {
+    label: "Clock Signal",
+    value: `CIRCUIT clock_circuit
+OUTPUT clk
+CLOCK clk PERIOD 10 DUTY 50
+`,
+  },
+];
+
+// --- Custom Highlighter Plugin ---
+const keywordMap = {
+  "CIRCUIT": "keyword-circuit",
+  "INPUT": "keyword-io",
+  "OUTPUT": "keyword-io",
+  "SIGNAL": "keyword-signal",
+  "CLOCK": "keyword-clock",
+  "GATE": "keyword-component",
+  "DFF": "keyword-component", // <-- THIS IS THE FIX. It now has the same style as GATE.
+  "AND": "keyword-operator",
+  "OR": "keyword-operator",
+  "NOT": "keyword-operator",
+  "XOR": "keyword-operator",
+  "PERIOD": "keyword-parameter",
+  "DUTY": "keyword-parameter",
+};
+
 export default function App() {
+  // Add these state declarations at the top
   const [netlist, setNetlist] = useState(
     "CIRCUIT DEMO\nINPUT a\nINPUT b\nOUTPUT y\nSIGNAL s1\nCLOCK clk PERIOD 4 DUTY 0.5\nGATE g1 AND a b s1\nGATE g2 NOT s1 y"
   );
-  const [inputs, setInputs] = useState({});
-  const [data, setData] = useState(null);
+  const [steps, setSteps] = useState(50);
+  const [inputsMap, setInputsMap] = useState({});
+  const [waveforms, setWaveforms] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [parseErrors, setParseErrors] = useState([]);
   const [inputPeriod, setInputPeriod] = useState(1); // State for the input period
+  const [validationError, setValidationError] = useState(null); // New state for validation error
 
   // --- State for Auto-Suggestions ---
   const editorRef = useRef(null);
@@ -119,10 +257,20 @@ export default function App() {
   // State to control help guide visibility
   const [showHelp, setShowHelp] = useState(false);
 
+  // Ref for templates dropdown
+  const templatesRef = useRef(null);
+
   // Run validator whenever netlist changes
   useEffect(() => {
     const errors = validateNetlist(netlist);
     setParseErrors(errors);
+
+    // Set validation error state (new logic)
+    if (errors.length > 0) {
+      setValidationError(errors[0]);
+    } else {
+      setValidationError(null);
+    }
   }, [netlist]);
 
   // Parse the netlist in real-time to find input definitions, preserving case
@@ -180,7 +328,7 @@ export default function App() {
         const textarea = editorRef.current._input;
         const cursorPos = textarea.selectionStart;
         const lineStart = netlist.lastIndexOf("\n", cursorPos - 1) + 1;
-        const textToCursor = netlist.substring(lineStart, cursorPos);
+        const textToCursor = netlist.substring(0, cursorPos);
         const wordStart = textToCursor.search(/(\w+)$/);
         
         const newCode = 
@@ -196,45 +344,81 @@ export default function App() {
     }
   };
 
-  const handleSimulate = async () => {
-    setLoading(true);
-    setData(null);
-    setParseErrors([]);
+  // Update the handleInputChange function
+  const handleInputChange = (signal, value) => {
+    // Clean input to only allow 0s and 1s
+    const cleanValue = value.replace(/[^01]/g, '');
+    
+    // Store the original input value
+    setInputsMap(prev => ({
+      ...prev,
+      [signal]: cleanValue  // Store original input without padding
+    }));
 
-    // Process inputs to stretch them by the input period
-    const processedInputs = {};
-    for (const key in inputs) {
-      if (Object.hasOwnProperty.call(inputs, key)) {
-        const originalValue = inputs[key] || "";
-        processedInputs[key] = originalValue
-          .split('')
-          .map(bit => bit.repeat(inputPeriod))
-          .join('');
-      }
-    }
+    // When sending to simulation, expand based on period
+    const getExpandedValue = (value) => {
+      return value
+        .split('')
+        .map(bit => bit.repeat(inputPeriod))
+        .join('');
+    };
+
+    // Log for debugging
+    console.log(`Input ${signal}:`, {
+      original: cleanValue,
+      period: inputPeriod,
+      expanded: getExpandedValue(cleanValue)
+    });
+  };
+
+  // Update the handleRun function
+  const handleRun = async () => {
+    setLoading(true);
+    setError(null);
+
+    // Expand all input values according to period before sending
+    const expandedInputs = Object.fromEntries(
+      Object.entries(inputsMap).map(([signal, value]) => [
+        signal,
+        value.split('').map(bit => bit.repeat(inputPeriod)).join('').padEnd(steps, '0')
+      ])
+    );
+
+    const requestBody = {
+      netlist: netlist.trim(),
+      steps: Number(steps),
+      inputs: expandedInputs
+    };
+
+    console.log('DEBUG - Sending inputs:', expandedInputs);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/simulate", {
+      const response = await fetch("http://localhost:8000/simulate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ netlist, inputs: processedInputs }), // Send processed inputs
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody)
       });
 
+      const data = await response.json();
+      console.log('DEBUG - Response:', data);
+
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+        throw new Error(data.detail || 'Simulation failed');
       }
-      const json = await response.json();
-      setData(json);
+
+      if (!data.simulation?.waveforms) {
+        throw new Error('No waveform data received');
+      }
+
+      setWaveforms(data.simulation.waveforms);
     } catch (err) {
-      console.error("❌ Simulation failed:", err);
-      setParseErrors([{ lineno: '?', message: err.message }]);
+      console.error('DEBUG - Error:', err);
+      setError({ message: err.message });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleInputChange = (name, value) => {
-    setInputs((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleCopy = () => {
@@ -252,7 +436,7 @@ export default function App() {
         </h1>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleSimulate}
+            onClick={handleRun}
             disabled={parseErrors.length > 0 || loading}
             className="flex items-center gap-2 bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg shadow-md transition transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 disabled:cursor-not-allowed"
           >
@@ -339,40 +523,10 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="editor-container flex-1 bg-slate-950 font-mono rounded-lg border border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden flex text-sm mt-3">
-              {/* Line Numbers */}
-              <div
-                className="line-numbers text-right pr-4 pt-3 text-slate-600 select-none"
-                style={{
-                  fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                  fontSize: 14,
-                  lineHeight: "1.6em",
-                }}
-              >
-                {netlist.split("\n").map((_, i) => {
-                  const lineno = i + 1;
-                  const hasError = parseErrors.some(e => e.lineno === lineno);
-                  return (
-                    <div key={i} className={hasError ? 'text-red-500 font-bold' : ''}>
-                      {lineno}
-                    </div>
-                  );
-                })}
-              </div>
-              <Editor
-                ref={editorRef}
+            <div className="editor-container flex-1 bg-slate-950 font-mono rounded-lg border border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
+              <NetlistEditor
                 value={netlist}
-                onValueChange={handleNetlistChange}
-                onKeyDown={handleKeyDown}
-                highlight={(code) => highlight(code, languages.netlist, "netlist")}
-                padding={12}
-                textareaId="code-editor"
-                className="flex-1 !outline-none custom-editor"
-                style={{
-                  fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                  fontSize: 14,
-                  lineHeight: "1.6em",
-                }}
+                onChange={handleNetlistChange}
               />
             </div>
             {/* Suggestions Box */}
@@ -433,10 +587,8 @@ export default function App() {
                     type="text"
                     placeholder="e.g. 0101"
                     className="flex-1 px-3 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
-                    value={inputs[inpName] || ""}
-                    onChange={(e) =>
-                      handleInputChange(inpName, e.target.value)
-                    }
+                    value={inputsMap[inpName] || ''}
+                    onChange={(e) => handleInputChange(inpName, e.target.value)}
                   />
                 </div>
               ))
@@ -449,16 +601,13 @@ export default function App() {
         </div>
 
         {/* Right panel: waveform */}
-        <div className="w-1/2 p-4 overflow-auto">
-          {loading && <div>⏳ Running simulation...</div>}
-          {!loading && data?.simulation ? (
-            <WaveformViewer
-              waveforms={data.simulation.waveforms}
-              steps={data.simulation.steps}
-            />
-          ) : (
-            !loading && <div className="text-gray-400">No simulation yet</div>
-          )}
+        <div className="w-1/2 p-4 flex-1 flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <h2 className="text-lg font-semibold mb-4 text-gray-300">Waveform</h2>
+          <div className="flex-1 overflow-auto">
+            {loading && <p>Simulating...</p>}
+            {error && <p className="text-red-400">Error: {error.message}</p>}
+            {waveforms && <WaveformViewer waveforms={waveforms} steps={steps} />}
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict
+from typing import Dict, Any
 
 # Import your existing parser and circuit logic
 from core.parser import NetlistParser, NetlistParseError
@@ -9,8 +9,10 @@ from core.circuit import Circuit
 
 app = FastAPI()
 
-# --- CORS Middleware (This should be correct) ---
-origins = ["http://localhost:5173"]
+# --- CORS Middleware (Keep this as it is) ---
+origins = [
+    "http://localhost:5173",
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -24,7 +26,7 @@ class SimulationRequest(BaseModel):
     netlist: str
     inputs: Dict[str, str]
 
-# --- The /simulate Endpoint (Corrected and Final Version) ---
+# --- The Missing /simulate Endpoint ---
 @app.post("/simulate")
 async def simulate_endpoint(request: SimulationRequest):
     """
@@ -57,5 +59,5 @@ async def simulate_endpoint(request: SimulationRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         # Handle any other unexpected errors during simulation
-        print(f"UNEXPECTED SERVER ERROR: {e}") # Log the actual error to the console
-        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {e}")
+        print(f"An unexpected error occurred: {e}") # Log to backend console
+        raise HTTPException(status_code=500, detail="An internal server error occurred during simulation.")
