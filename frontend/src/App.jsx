@@ -8,6 +8,7 @@ import getCaretCoordinates from "textarea-caret";
 import { StreamLanguage } from '@codemirror/language';
 import { vhdl } from '@codemirror/legacy-modes/mode/vhdl';
 import { autocompletion } from '@codemirror/autocomplete';
+import { CIRCUIT_TEMPLATES } from './CircuitTemplates';
 
 // --- Live Netlist Validator (based on your Python parser) ---
 const validateNetlist = (text) => {
@@ -259,6 +260,7 @@ export default function App() {
 
   // Ref for templates dropdown
   const templatesRef = useRef(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // Run validator whenever netlist changes
   useEffect(() => {
@@ -427,6 +429,13 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Add this function inside the App component before the return statement
+  const handleTemplateSelect = (template) => {
+    // Add a newline if the current netlist doesn't end with one
+    const separator = netlist.endsWith('\n') ? '' : '\n';
+    setNetlist(netlist + separator + template.value);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-white font-mono">
       {/* Top bar */}
@@ -435,6 +444,32 @@ export default function App() {
           Netlist Simulator
         </h1>
         <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              onClick={() => setShowTemplates(!showTemplates)}
+              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+            >
+              <Library size={16} /> Templates
+            </button>
+            {showTemplates && (
+              <div className="absolute z-50 mt-2 w-64 bg-gray-800 border border-gray-600 rounded-lg shadow-xl">
+                <div className="py-1">
+                  {CIRCUIT_TEMPLATES.map((template) => (
+                    <button
+                      key={template.label}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-700 text-sm"
+                      onClick={() => {
+                        handleTemplateSelect(template);
+                        setShowTemplates(false);
+                      }}
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleRun}
             disabled={parseErrors.length > 0 || loading}
