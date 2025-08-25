@@ -19,4 +19,7 @@ __all__ = [
     "DFlipFlop",
     "NetlistParser",
     "NetlistParseError",
+    "NandGate",
+    "NorGate",
+    "XnorGate"
 ]

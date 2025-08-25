@@ -38,7 +38,7 @@ from core.circuit import Circuit
 from core.signal import Signal
 from core.clock import Clock
 from core.flipflop import DFlipFlop
-from core.gates import AndGate, OrGate, NotGate, XorGate
+from core.gates import AndGate, OrGate, NotGate, XorGate, NandGate, NorGate, XnorGate
 
 _NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -46,7 +46,7 @@ class NetlistParseError(Exception):
     """Raised for any netlist parsing error with a helpful message."""
 
 class NetlistParser:
-    GATE_MAP = {"AND": AndGate, "OR": OrGate, "XOR": XorGate, "NOT": NotGate}
+    GATE_MAP = {"AND": AndGate, "OR": OrGate, "XOR": XorGate, "NOT": NotGate, "NAND": NandGate, "NOR": NorGate, "XNOR": XnorGate}
 
     def __init__(self, text: str):
         self.text = text

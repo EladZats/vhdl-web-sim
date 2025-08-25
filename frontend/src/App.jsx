@@ -77,7 +77,7 @@ const validateNetlist = (text) => {
 
 // Basic VHDL-like syntax highlighting for the netlist
 languages.netlist = {
-  keyword: /\b(CIRCUIT|INPUT|OUTPUT|SIGNAL|CLOCK|GATE|PERIOD|DUTY|AND|OR|NOT|NAND|NOR|XOR|XNOR)\b/i,
+  keyword: /\b(CIRCUIT|INPUT|OUTPUT|SIGNAL|CLOCK|GATE|PERIOD|DUTY|NAND|NOR|XOR|XNOR|AND|OR|NOT)\b/i,
   number: /\b\d+(\.\d+)?\b/,
   comment: /--.*/,
   "string-literal": {
@@ -88,7 +88,7 @@ languages.netlist = {
 
 // --- Suggestion Engine ---
 const KEYWORDS = ["CIRCUIT", "INPUT", "OUTPUT", "SIGNAL", "CLOCK", "GATE", "PERIOD", "DUTY", "DFF"];
-const GATE_TYPES = ["AND", "OR", "NOT", "NAND", "NOR", "XOR", "XNOR"];
+const GATE_TYPES = ["NAND", "NOR", "XOR", "XNOR", "AND", "OR", "NOT"];
 
 const getSuggestions = (line, word, declaredSignals) => {
   const upperLine = line.toUpperCase();
@@ -118,7 +118,7 @@ const customVHDL = {
 // 3. Define the list of words for autocompletion (can be uppercase for readability)
 const completionKeywords = [
   "CIRCUIT", "INPUT", "OUTPUT", "SIGNAL", "GATE", "CLOCK", "DFF",
-  "AND", "OR", "NOT", "XOR", "PERIOD", "DUTY"
+   "PERIOD", "DUTY", "NAND", "NOR", "XNOR" , "AND", "OR", "NOT", "XOR"
 ].map(label => ({ label, type: "keyword" }));
 
 // 4. Create a custom completion source function
@@ -232,6 +232,9 @@ const keywordMap = {
   "XOR": "keyword-operator",
   "PERIOD": "keyword-parameter",
   "DUTY": "keyword-parameter",
+  "NAND": "keyword-operator",
+  "NOR": "keyword-operator",
+  "XNOR": "keyword-operator"
 };
 
 export default function App() {
@@ -537,7 +540,7 @@ export default function App() {
                         <li>
                           <code className="bg-slate-700 px-1 rounded font-mono">GATE g_name type in1 [in2] out</code>: Defines a logic gate.
                           <ul className="pl-6 mt-1 text-xs text-slate-400 font-mono">
-                            <li>`type` can be AND, OR, NOT, NAND, NOR, XOR, XNOR.</li>
+                            <li>`type` can be  NAND, NOR, XOR, XNOR, AND, OR, NOT .`</li>
                             <li>NOT gates have 1 input; others have 2.</li>
                             <li>Example: `GATE g1 AND a b y`</li>
                           </ul>

@@ -50,3 +50,21 @@ class NotGate(Gate):
         in_val = self.circuit.signals[self.input_names[0]].get_value() or 0
         val = int(not in_val)
         self.circuit.signals[self.output_name].set_value(val)
+
+class NandGate(Gate):
+    def update(self):
+        in1 = self.circuit.signals[self.input_names[0]].get_value() or 0
+        in2 = self.circuit.signals[self.input_names[1]].get_value() or 0
+        self.circuit.signals[self.output_name].set_value(int(not (in1 and in2)))
+
+class NorGate(Gate):
+    def update(self):
+        in1 = self.circuit.signals[self.input_names[0]].get_value() or 0
+        in2 = self.circuit.signals[self.input_names[1]].get_value() or 0
+        self.circuit.signals[self.output_name].set_value(int(not (in1 or in2)))
+
+class XnorGate(Gate):
+    def update(self):
+        in1 = self.circuit.signals[self.input_names[0]].get_value() or 0
+        in2 = self.circuit.signals[self.input_names[1]].get_value() or 0
+        self.circuit.signals[self.output_name].set_value(int(not (in1 ^ in2)))

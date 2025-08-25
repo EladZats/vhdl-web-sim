@@ -10,7 +10,7 @@ const NetlistEditor = ({ value, onChange }) => {
           // Keywords with bright yellow and bold
           [/\b(CIRCUIT|INPUT|OUTPUT|SIGNAL|GATE|CLOCK|DFF)\b/, "keyword"],
           // Gate types with bright cyan
-          [/\b(AND|OR|XOR|NOT)\b/, "gate"],
+          [/\b(NAND|NOR|XNOR|AND|OR|XOR|NOT)\b/, "gate"],
           // Parameters with warm orange
           [/\b(PERIOD|DUTY)\b/, "parameter"],
           // Comments with softer green
