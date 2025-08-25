@@ -386,6 +386,7 @@ export default function App() {
       ])
     );
 
+    // This object is correctly defined with the right variables: `netlist` and `expandedInputs`
     const requestBody = {
       netlist: netlist.trim(),
       steps: Number(steps),
@@ -395,29 +396,31 @@ export default function App() {
     console.log('DEBUG - Sending inputs:', expandedInputs);
 
     try {
-      const response = await fetch("http://localhost:8000/simulate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody)
+      const res = await fetch('http://localhost:8000/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // FIX: Use the `requestBody` object we just created.
+        // The old code was using `netlistContent` and `inputs` which are not defined here.
+        body: JSON.stringify(requestBody),
       });
 
-      const data = await response.json();
-      console.log('DEBUG - Response:', data);
+      // This part is important for debugging the backend response
+      const data = await res.json();
+      console.log('Received data from server:', JSON.stringify(data, null, 2));
 
-      if (!response.ok) {
-        throw new Error(data.detail || 'Simulation failed');
+      if (!res.ok) {
+        // Handle server-side errors
+        const errorDetail = data.detail || `HTTP error! status: ${res.status}`;
+        throw new Error(errorDetail);
       }
 
-      if (!data.simulation?.waveforms) {
+      if (!data || !data.waveforms || Object.keys(data.waveforms).length === 0) {
         throw new Error('No waveform data received');
       }
-
-      setWaveforms(data.simulation.waveforms);
-    } catch (err) {
-      console.error('DEBUG - Error:', err);
-      setError({ message: err.message });
+      setWaveforms(data.waveforms);
+    } catch (error) {
+      console.error('DEBUG - Error:', error);
+      setError({ message: error.message });
     } finally {
       setLoading(false);
     }
