@@ -1,9 +1,15 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-export default function WaveformViewer({ waveforms }) {
+const WaveformViewer = ({ waveforms, steps, stepWidth = 40, showGrid = true, compressed = false }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [hoverX, setHoverX] = useState(null);
+  const signalNames = Object.keys(waveforms);
+  const signalHeight = compressed ? 20 : 40;
+  const paddingTop = 20;
+  const nameWidth = 100;
+  const totalWidth = nameWidth + (steps * stepWidth);
+  const totalHeight = paddingTop + (signalNames.length * signalHeight);
 
   useEffect(() => {
     if (!waveforms || Object.keys(waveforms).length === 0) return;
@@ -14,7 +20,6 @@ export default function WaveformViewer({ waveforms }) {
     // Set dimensions with extra space for time axis
     const rowHeight = 40;
     const padding = 160; // Increased padding for value display
-    const stepWidth = 40;
     const signals = Object.keys(waveforms);
     const steps = waveforms[signals[0]].length;
     const width = padding + (steps * stepWidth);
@@ -179,4 +184,6 @@ export default function WaveformViewer({ waveforms }) {
       <canvas ref={canvasRef} className="min-w-full" />
     </div>
   );
-}
+};
+
+export default WaveformViewer;

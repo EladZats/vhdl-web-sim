@@ -266,12 +266,18 @@ export default function App() {
 
   // State for the settings panel
   const [showSettings, setShowSettings] = useState(false);
-
-  // Ref for templates dropdown
-  const templatesRef = useRef(null);
   const [showTemplates, setShowTemplates] = useState(false);
 
-  // --- NEW: Handlers to ensure only one panel is open at a time ---
+  // --- NEW: State for Settings ---
+  const [showGrid, setShowGrid] = useState(true);
+  const [compressedView, setCompressedView] = useState(false);
+  const [stepWidth, setStepWidth] = useState(40);
+  const [editorFontSize, setEditorFontSize] = useState(14);
+  const [autocompleteEnabled, setAutocompleteEnabled] = useState(true);
+  const [editorTheme, setEditorTheme] = useState('dark');
+
+
+  // --- Handlers to ensure only one panel is open at a time ---
   const handleTemplatesClick = () => {
     setShowSettings(false);
     setShowMainHelp(false);
@@ -468,9 +474,9 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-white font-mono">
+    <div className={`${editorTheme} h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-mono transition-colors duration-300`}>
       {/* Top bar */}
-      <div className="bg-gradient-to-r from-gray-800 to-gray-700 p-4 flex items-center justify-between shadow-lg">
+      <div className="bg-gray-200 dark:bg-gradient-to-r dark:from-gray-800 dark:to-gray-700 p-4 flex items-center justify-between shadow-lg border-b border-gray-300 dark:border-transparent">
         <h1 className="text-xl font-bold flex items-center gap-2">
           Netlist Simulator
         </h1>
@@ -513,65 +519,69 @@ export default function App() {
           <div className="relative">
             <button
               onClick={handleSettingsClick}
-              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+              className="flex items-center gap-1 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 px-3 py-2 rounded-lg transition"
             >
               <Settings size={16} /> Settings
             </button>
             {showSettings && (
-              <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 p-4 text-sm font-sans">
-                <h4 className="font-bold text-slate-100 mb-3 border-b border-slate-600 pb-1">
+              <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-xl z-50 p-4 text-sm font-sans">
+                <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-3 border-b border-slate-300 dark:border-slate-600 pb-1">
                   Settings
                 </h4>
 
                 {/* --- Display --- */}
-                <h5 className="text-slate-200 font-semibold mb-2">Display</h5>
+                <h5 className="text-slate-600 dark:text-slate-200 font-semibold mb-2">Display</h5>
                 <div className="mb-3 flex items-center gap-2">
-                  <input type="checkbox" id="grid" className="accent-emerald-500" defaultChecked />
-                  <label htmlFor="grid" className="text-slate-300 text-xs">Show grid lines</label>
+                  <input type="checkbox" id="grid" className="accent-emerald-500" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />
+                  <label htmlFor="grid" className="text-slate-500 dark:text-slate-300 text-xs">Show grid lines</label>
                 </div>
                 <div className="mb-3 flex items-center gap-2">
-                  <input type="checkbox" id="compressed" className="accent-emerald-500" />
-                  <label htmlFor="compressed" className="text-slate-300 text-xs">Compressed waveforms</label>
+                  <input type="checkbox" id="compressed" className="accent-emerald-500" checked={compressedView} onChange={(e) => setCompressedView(e.target.checked)} />
+                  <label htmlFor="compressed" className="text-slate-500 dark:text-slate-300 text-xs">Compressed waveforms</label>
                 </div>
                 <div className="mb-3">
-                  <label className="block text-slate-300 text-xs mb-1">Zoom (Step Width)</label>
+                  <label className="block text-slate-500 dark:text-slate-300 text-xs mb-1">Zoom (Step Width: {stepWidth}px)</label>
                   <input
                     type="range"
                     min="20"
                     max="80"
-                    defaultValue="40"
+                    value={stepWidth}
+                    onChange={(e) => setStepWidth(parseInt(e.target.value, 10))}
                     className="w-full accent-emerald-500"
                   />
                 </div>
 
                 {/* --- Editor --- */}
-                <h5 className="text-slate-200 font-semibold mb-2">Editor</h5>
+                <h5 className="text-slate-600 dark:text-slate-200 font-semibold mb-2">Editor</h5>
                 <div className="mb-3">
-                  <label className="block text-slate-300 text-xs mb-1">Font Size</label>
+                  <label className="block text-slate-500 dark:text-slate-300 text-xs mb-1">Font Size</label>
                   <input
                     type="number"
                     min="10"
                     max="24"
-                    defaultValue={14}
-                    className="w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-1 focus:ring-amber-500"
+                    value={editorFontSize}
+                    onChange={(e) => setEditorFontSize(parseInt(e.target.value, 10))}
+                    className="w-full px-2 py-1 bg-gray-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-slate-700 dark:text-amber-300 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
                 <div className="mb-3 flex items-center gap-2">
-                  <input type="checkbox" id="autocomplete" className="accent-emerald-500" defaultChecked />
-                  <label htmlFor="autocomplete" className="text-slate-300 text-xs">Enable autocomplete</label>
+                  <input type="checkbox" id="autocomplete" className="accent-emerald-500" checked={autocompleteEnabled} onChange={(e) => setAutocompleteEnabled(e.target.checked)} />
+                  <label htmlFor="autocomplete" className="text-slate-500 dark:text-slate-300 text-xs">Enable autocomplete</label>
                 </div>
                 <div className="mb-3">
-                  <label className="block text-slate-300 text-xs mb-1">Theme</label>
+                  <label className="block text-slate-500 dark:text-slate-300 text-xs mb-1">Theme</label>
                   <select
-                    className="w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-1 focus:ring-amber-500"
+                    value={editorTheme}
+                    onChange={(e) => setEditorTheme(e.target.value)}
+                    className="w-full px-2 py-1 bg-gray-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-slate-700 dark:text-amber-300 focus:ring-1 focus:ring-emerald-500"
                   >
-                    <option>Dark</option>
-                    <option>Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
                   </select>
                 </div>
 
                 {/* --- General --- */}
-                <h5 className="text-slate-200 font-semibold mb-2">General</h5>
+                <h5 className="text-slate-600 dark:text-slate-200 font-semibold mb-2">General</h5>
                 <div className="mb-3 flex gap-2">
                   <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
                     Reset to defaults
@@ -660,13 +670,13 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main content - UNCHANGED */}
+      {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left panel: Netlist Editor (now takes full height) */}
-        <div className="w-3/5 p-4 flex flex-col">
-          <div className="flex-1 flex flex-col bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-700 relative">
+        {/* Left panel: Netlist Editor (now thinner) */}
+        <div className="w-2/5 p-4 flex flex-col">
+          <div className="flex-1 flex flex-col bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-300 dark:border-slate-700">
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-semibold text-slate-300">
+              <label className="text-sm font-semibold text-slate-500 dark:text-slate-300">
                 Netlist Editor
               </label>
               <div className="flex items-center gap-3">
@@ -731,10 +741,14 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="editor-container flex-1 bg-slate-950 font-mono rounded-lg border border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
+            <div className="editor-container flex-1 bg-white dark:bg-slate-950 font-mono rounded-lg border border-slate-300 dark:border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
               <NetlistEditor
                 value={netlist}
                 onChange={handleNetlistChange}
+                fontSize={editorFontSize}
+                autocomplete={autocompleteEnabled}
+                completions={myCompletions}
+                theme={editorTheme}
               />
             </div>
             {suggestions.length > 0 && (
@@ -767,10 +781,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right panel: Inputs + Waveform */}
-        <div className="w-2/5 p-4 flex flex-col space-y-4">
-          {/* Inputs editor (now at the top of the right column) */}
-          <div className="h-48 bg-slate-800/50 p-4 rounded-xl shadow-lg overflow-y-auto border border-slate-700">
+        {/* Right panel: Inputs + Waveform (now wider) */}
+        <div className="w-3/5 p-4 flex flex-col space-y-4">
+          {/* Inputs editor (aligned at the top, full width) */}
+          <div className="bg-slate-800/50 p-4 rounded-xl shadow-lg overflow-y-auto border border-slate-700 mb-4">
             <div className="flex justify-between items-center mb-3 border-b border-slate-700 pb-3">
               <label className="text-sm font-semibold text-slate-300">
                 Inputs
@@ -786,20 +800,23 @@ export default function App() {
                 />
               </div>
             </div>
-            
             {definedInputs.length > 0 ? (
-              definedInputs.map((inpName) => (
-                <div key={inpName} className="flex items-center gap-3 mb-2 font-mono">
-                  <span className="w-12 text-slate-300">{inpName}:</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. 0101"
-                    className="flex-1 px-3 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
-                    value={inputsMap[inpName] || ''}
-                    onChange={(e) => handleInputChange(inpName, e.target.value)}
-                  />
+              <div className="max-h-44 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-3">
+                  {definedInputs.map((inpName) => (
+                    <div key={inpName} className="flex items-center gap-3 font-mono">
+                      <span className="w-12 text-slate-300">{inpName}:</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. 0101"
+                        className="flex-1 px-3 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+                        value={inputsMap[inpName] || ''}
+                        onChange={(e) => handleInputChange(inpName, e.target.value)}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))
+              </div>
             ) : (
               <p className="text-slate-500 italic text-sm">
                 Define inputs like 'INPUT a' in the editor.
@@ -807,13 +824,19 @@ export default function App() {
             )}
           </div>
 
-          {/* Waveform viewer (now below inputs) */}
+          {/* Waveform viewer (fills remaining space) */}
           <div className="flex-1 flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 overflow-hidden">
             <h2 className="text-lg font-semibold mb-4 text-gray-300">Waveform</h2>
             <div className="flex-1 overflow-auto">
               {loading && <p>Simulating...</p>}
               {error && <p className="text-red-400">Error: {error.message}</p>}
-              {waveforms && <WaveformViewer waveforms={waveforms} steps={steps} />}
+              {waveforms && <WaveformViewer 
+                waveforms={waveforms} 
+                steps={steps}
+                stepWidth={stepWidth}
+                showGrid={showGrid}
+                compressed={compressedView}
+              />}
             </div>
           </div>
         </div>
