@@ -11,10 +11,10 @@ from core.exporter import export_to_json
 
 app = FastAPI()
 
-# ✅ Enable CORS so frontend can access backend
+# ✅ Enable CORS so frontend on Netlify can access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # אפשר לצמצם ל ["http://localhost:5173"]
+    allow_origins=["https://netlistsimulator.netlify.app"],  # Netlify domain only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
