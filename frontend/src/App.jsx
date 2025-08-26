@@ -10,6 +10,8 @@ import { vhdl } from '@codemirror/legacy-modes/mode/vhdl';
 import { autocompletion } from '@codemirror/autocomplete';
 import { CIRCUIT_TEMPLATES } from './CircuitTemplates';
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 // --- Live Netlist Validator (based on your Python parser) ---
 const validateNetlist = (text) => {
   const errors = [];
@@ -420,7 +422,6 @@ export default function App() {
       ])
     );
 
-    // This object is correctly defined with the right variables: `netlist` and `expandedInputs`
     const requestBody = {
       netlist: netlist.trim(),
       steps: Number(steps),
@@ -430,20 +431,17 @@ export default function App() {
     console.log('DEBUG - Sending inputs:', expandedInputs);
 
     try {
-      const res = await fetch('http://localhost:8000/simulate', {
+      // UPDATED: Use API_URL instead of hardcoded localhost
+      const res = await fetch(`${API_URL}/simulate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // FIX: Use the `requestBody` object we just created.
-        // The old code was using `netlistContent` and `inputs` which are not defined here.
         body: JSON.stringify(requestBody),
       });
 
-      // This part is important for debugging the backend response
       const data = await res.json();
       console.log('Received data from server:', JSON.stringify(data, null, 2));
 
       if (!res.ok) {
-        // Handle server-side errors
         const errorDetail = data.detail || `HTTP error! status: ${res.status}`;
         throw new Error(errorDetail);
       }
