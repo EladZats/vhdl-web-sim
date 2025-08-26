@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+starlette
 pydantic
 jinja2
 python-multipart
@@ -11,4 +12,3 @@ fastapi[all]
 httpx
 # For static file serving (if needed)
 aiofiles
-starlette

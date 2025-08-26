@@ -26,7 +26,6 @@ class SimulateRequest(BaseModel):
     inputs: dict[str, str] | None = None  # e.g. {"a": "0101"}
     steps: int = 16
 
-
 @app.post("/simulate")
 def simulate(req: SimulateRequest):
     # 1. Parse the netlist

@@ -10,9 +10,10 @@ from core.parser import NetlistParser
 
 app = FastAPI()
 
+# ✅ Enable CORS so frontend on Netlify can access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["https://netlistsimulator.netlify.app"],  # Netlify domain only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,9 +37,6 @@ async def simulate(req: SimulateRequest):
             all_signal_names.add(clock.name)
         sorted_signal_names = sorted(list(all_signal_names))
         print(f"Tracking all signals: {sorted_signal_names}")
-
-        # --- THIS IS THE FIX ---
-        # REMOVED the loop that called the non-existent `set_vector` method.
 
         # Collect values for each timestep
         steps_data = []
