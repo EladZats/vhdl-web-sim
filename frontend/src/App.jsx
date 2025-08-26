@@ -260,10 +260,35 @@ export default function App() {
 
   // State to control help guide visibility
   const [showHelp, setShowHelp] = useState(false);
+  
+  // State for the main help guide in the top bar
+  const [showMainHelp, setShowMainHelp] = useState(false);
+
+  // State for the settings panel
+  const [showSettings, setShowSettings] = useState(false);
 
   // Ref for templates dropdown
   const templatesRef = useRef(null);
   const [showTemplates, setShowTemplates] = useState(false);
+
+  // --- NEW: Handlers to ensure only one panel is open at a time ---
+  const handleTemplatesClick = () => {
+    setShowSettings(false);
+    setShowMainHelp(false);
+    setShowTemplates(prev => !prev);
+  };
+
+  const handleSettingsClick = () => {
+    setShowTemplates(false);
+    setShowMainHelp(false);
+    setShowSettings(prev => !prev);
+  };
+
+  const handleHelpClick = () => {
+    setShowTemplates(false);
+    setShowSettings(false);
+    setShowMainHelp(prev => !prev);
+  };
 
   // Run validator whenever netlist changes
   useEffect(() => {
@@ -452,7 +477,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="relative">
             <button
-              onClick={() => setShowTemplates(!showTemplates)}
+              onClick={handleTemplatesClick}
               className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
             >
               <Library size={16} /> Templates
@@ -483,20 +508,162 @@ export default function App() {
           >
             <Play size={18} /> {loading ? "Running..." : "Run"}
           </button>
-          <button className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition">
-            <Settings size={16} /> Settings
-          </button>
-          <button className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition">
-            <HelpCircle size={16} /> Help
-          </button>
+
+          {/* --- Settings Button --- */}
+          <div className="relative">
+            <button
+              onClick={handleSettingsClick}
+              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+            >
+              <Settings size={16} /> Settings
+            </button>
+            {showSettings && (
+              <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 p-4 text-sm font-sans">
+                <h4 className="font-bold text-slate-100 mb-3 border-b border-slate-600 pb-1">
+                  Settings
+                </h4>
+
+                {/* --- Display --- */}
+                <h5 className="text-slate-200 font-semibold mb-2">Display</h5>
+                <div className="mb-3 flex items-center gap-2">
+                  <input type="checkbox" id="grid" className="accent-emerald-500" defaultChecked />
+                  <label htmlFor="grid" className="text-slate-300 text-xs">Show grid lines</label>
+                </div>
+                <div className="mb-3 flex items-center gap-2">
+                  <input type="checkbox" id="compressed" className="accent-emerald-500" />
+                  <label htmlFor="compressed" className="text-slate-300 text-xs">Compressed waveforms</label>
+                </div>
+                <div className="mb-3">
+                  <label className="block text-slate-300 text-xs mb-1">Zoom (Step Width)</label>
+                  <input
+                    type="range"
+                    min="20"
+                    max="80"
+                    defaultValue="40"
+                    className="w-full accent-emerald-500"
+                  />
+                </div>
+
+                {/* --- Editor --- */}
+                <h5 className="text-slate-200 font-semibold mb-2">Editor</h5>
+                <div className="mb-3">
+                  <label className="block text-slate-300 text-xs mb-1">Font Size</label>
+                  <input
+                    type="number"
+                    min="10"
+                    max="24"
+                    defaultValue={14}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+                <div className="mb-3 flex items-center gap-2">
+                  <input type="checkbox" id="autocomplete" className="accent-emerald-500" defaultChecked />
+                  <label htmlFor="autocomplete" className="text-slate-300 text-xs">Enable autocomplete</label>
+                </div>
+                <div className="mb-3">
+                  <label className="block text-slate-300 text-xs mb-1">Theme</label>
+                  <select
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-1 focus:ring-amber-500"
+                  >
+                    <option>Dark</option>
+                    <option>Light</option>
+                  </select>
+                </div>
+
+                {/* --- General --- */}
+                <h5 className="text-slate-200 font-semibold mb-2">General</h5>
+                <div className="mb-3 flex gap-2">
+                  <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
+                    Reset to defaults
+                  </button>
+                  <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
+                    Export settings
+                  </button>
+                  <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
+                    Import settings
+                  </button>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="bg-emerald-600 hover:bg-emerald-700 px-3 py-1 rounded-md text-white text-sm"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* --- Help Button --- */}
+          <div className="relative">
+            <button
+              onClick={handleHelpClick}
+              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+            >
+              <HelpCircle size={16} /> Help
+            </button>
+            {showMainHelp && (
+              <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20 p-4 text-sm font-sans">
+                <h4 className="font-bold text-slate-100 mb-2 border-b border-slate-600 pb-1">
+                  Netlist Simulator – Help Guide
+                </h4>
+                <p className="text-slate-300 mb-3">
+                  This tool lets you design and simulate simple digital circuits
+                  using a text-based <span className="text-emerald-400 font-mono">netlist</span> format.
+                  You can describe your circuit with inputs, outputs, signals,
+                  gates, clocks, and flip-flops, then run a step-by-step simulation
+                  to view signal waveforms.
+                </p>
+
+                <h5 className="text-slate-200 font-semibold mb-1">How to use:</h5>
+                <ul className="list-disc list-inside space-y-1 text-slate-300 mb-3">
+                  <li>
+                    <code className="bg-slate-700 px-1 rounded font-mono">CIRCUIT name</code> – Start by naming your circuit.
+                  </li>
+                  <li>
+                    <code className="bg-slate-700 px-1 rounded font-mono">INPUT / OUTPUT</code> – Declare external pins.
+                  </li>
+                  <li>
+                    <code className="bg-slate-700 px-1 rounded font-mono">SIGNAL</code> – Create internal wires.
+                  </li>
+                  <li>
+                    <code className="bg-slate-700 px-1 rounded font-mono">GATE</code> – Define gates 
+                    (<span className="text-emerald-400">AND, OR, NOT, NAND, NOR, XOR, XNOR</span>).
+                  </li>
+                  <li>
+                    <code className="bg-slate-700 px-1 rounded font-mono">CLOCK</code> – Add a clock with period & duty cycle.
+                  </li>
+                  <li>
+                    <code className="bg-slate-700 px-1 rounded font-mono">DFF</code> – Add flip-flops for sequential logic.
+                  </li>
+                  <li>
+                    Type your circuit in the editor, then click 
+                    <span className="text-emerald-400"> Run</span> to simulate and see the waveforms.
+                  </li>
+                </ul>
+
+                <h5 className="text-slate-200 font-semibold mb-1">Tips:</h5>
+                <ul className="list-disc list-inside space-y-1 text-slate-300 mb-3">
+                  <li>Comments start with <code className="bg-slate-700 px-1 rounded font-mono">--</code>.</li>
+                  <li>Signal names are case-sensitive.</li>
+                  <li>Use the <span className="text-emerald-400">Templates</span> menu to quickly load example circuits.</li>
+                </ul>
+
+                <p className="text-xs text-slate-500 border-t border-slate-700 pt-2">
+                  © All rights reserved – Elad Zats
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content - UNCHANGED */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left panel: netlist + inputs */}
-        <div className="w-1/2 p-4 flex flex-col space-y-4">
-          {/* Netlist editor */}
+        {/* Left panel: Netlist Editor (now takes full height) */}
+        <div className="w-3/5 p-4 flex flex-col">
           <div className="flex-1 flex flex-col bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-700 relative">
             <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-semibold text-slate-300">
@@ -510,7 +677,7 @@ export default function App() {
                   <Copy size={14} />
                   {copied ? "Copied!" : "Copy"}
                 </button>
-                {/* Help Icon and Guide */}
+                {/* THIS HELP ICON IS UNCHANGED */}
                 <div
                   className="relative"
                   onMouseEnter={() => setShowHelp(true)}
@@ -570,7 +737,6 @@ export default function App() {
                 onChange={handleNetlistChange}
               />
             </div>
-            {/* Suggestions Box */}
             {suggestions.length > 0 && (
               <div
                 className="absolute z-10 bg-slate-700 border border-slate-600 rounded-md shadow-lg"
@@ -588,7 +754,6 @@ export default function App() {
                 </ul>
               </div>
             )}
-            {/* Error Display Area */}
             {parseErrors.length > 0 && (
               <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded-md text-sm">
                 {parseErrors.map((error, i) => (
@@ -600,10 +765,12 @@ export default function App() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* Inputs editor */}
-          <div className="bg-slate-800/50 p-4 rounded-xl shadow-lg max-h-56 overflow-y-auto border border-slate-700">
-            {/* Header with Input Period on the right */}
+        {/* Right panel: Inputs + Waveform */}
+        <div className="w-2/5 p-4 flex flex-col space-y-4">
+          {/* Inputs editor (now at the top of the right column) */}
+          <div className="h-48 bg-slate-800/50 p-4 rounded-xl shadow-lg overflow-y-auto border border-slate-700">
             <div className="flex justify-between items-center mb-3 border-b border-slate-700 pb-3">
               <label className="text-sm font-semibold text-slate-300">
                 Inputs
@@ -639,15 +806,15 @@ export default function App() {
               </p>
             )}
           </div>
-        </div>
 
-        {/* Right panel: waveform */}
-        <div className="w-1/2 p-4 flex-1 flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700">
-          <h2 className="text-lg font-semibold mb-4 text-gray-300">Waveform</h2>
-          <div className="flex-1 overflow-auto">
-            {loading && <p>Simulating...</p>}
-            {error && <p className="text-red-400">Error: {error.message}</p>}
-            {waveforms && <WaveformViewer waveforms={waveforms} steps={steps} />}
+          {/* Waveform viewer (now below inputs) */}
+          <div className="flex-1 flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 overflow-hidden">
+            <h2 className="text-lg font-semibold mb-4 text-gray-300">Waveform</h2>
+            <div className="flex-1 overflow-auto">
+              {loading && <p>Simulating...</p>}
+              {error && <p className="text-red-400">Error: {error.message}</p>}
+              {waveforms && <WaveformViewer waveforms={waveforms} steps={steps} />}
+            </div>
           </div>
         </div>
       </div>
