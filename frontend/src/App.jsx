@@ -473,28 +473,38 @@ export default function App() {
     setNetlist(netlist + separator + template.value);
   };
 
+  // --- NEW: Effect to handle theme changes ---
+  useEffect(() => {
+    if (editorTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [editorTheme]);
+
   return (
-    <div className={`${editorTheme} h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-mono transition-colors duration-300`}>
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-mono transition-colors duration-300">
       {/* Top bar */}
-      <div className="bg-gray-200 dark:bg-gradient-to-r dark:from-gray-800 dark:to-gray-700 p-4 flex items-center justify-between shadow-lg border-b border-gray-300 dark:border-transparent">
-        <h1 className="text-xl font-bold flex items-center gap-2">
+      <div className="bg-white dark:bg-gradient-to-r dark:from-gray-800 dark:to-gray-700 p-4 flex items-center justify-between shadow-md border-b border-gray-200 dark:border-transparent">
+        <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
           Netlist Simulator
         </h1>
         <div className="flex items-center gap-3">
+          {/* Templates Button */}
           <div className="relative">
             <button
               onClick={handleTemplatesClick}
-              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+              className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-2 rounded-lg transition font-semibold"
             >
               <Library size={16} /> Templates
             </button>
             {showTemplates && (
-              <div className="absolute z-50 mt-2 w-64 bg-gray-800 border border-gray-600 rounded-lg shadow-xl">
+              <div className="absolute z-50 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl">
                 <div className="py-1">
                   {CIRCUIT_TEMPLATES.map((template) => (
                     <button
                       key={template.label}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-700 text-sm"
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-200"
                       onClick={() => {
                         handleTemplateSelect(template);
                         setShowTemplates(false);
@@ -507,49 +517,27 @@ export default function App() {
               </div>
             )}
           </div>
+          {/* Run Button */}
           <button
             onClick={handleRun}
             disabled={parseErrors.length > 0 || loading}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg shadow-md transition transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-lg shadow-md transition transform hover:scale-105 disabled:bg-gray-400 disabled:scale-100 disabled:cursor-not-allowed font-semibold"
           >
             <Play size={18} /> {loading ? "Running..." : "Run"}
           </button>
-
-          {/* --- Settings Button --- */}
+          {/* Settings Button */}
           <div className="relative">
             <button
               onClick={handleSettingsClick}
-              className="flex items-center gap-1 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+              className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-2 rounded-lg transition font-semibold"
             >
               <Settings size={16} /> Settings
             </button>
             {showSettings && (
               <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-xl z-50 p-4 text-sm font-sans">
-                <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-3 border-b border-slate-300 dark:border-slate-600 pb-1">
+                <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-gray-200 dark:border-slate-600 pb-1">
                   Settings
                 </h4>
-
-                {/* --- Display --- */}
-                <h5 className="text-slate-600 dark:text-slate-200 font-semibold mb-2">Display</h5>
-                <div className="mb-3 flex items-center gap-2">
-                  <input type="checkbox" id="grid" className="accent-emerald-500" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />
-                  <label htmlFor="grid" className="text-slate-500 dark:text-slate-300 text-xs">Show grid lines</label>
-                </div>
-                <div className="mb-3 flex items-center gap-2">
-                  <input type="checkbox" id="compressed" className="accent-emerald-500" checked={compressedView} onChange={(e) => setCompressedView(e.target.checked)} />
-                  <label htmlFor="compressed" className="text-slate-500 dark:text-slate-300 text-xs">Compressed waveforms</label>
-                </div>
-                <div className="mb-3">
-                  <label className="block text-slate-500 dark:text-slate-300 text-xs mb-1">Zoom (Step Width: {stepWidth}px)</label>
-                  <input
-                    type="range"
-                    min="20"
-                    max="80"
-                    value={stepWidth}
-                    onChange={(e) => setStepWidth(parseInt(e.target.value, 10))}
-                    className="w-full accent-emerald-500"
-                  />
-                </div>
 
                 {/* --- Editor --- */}
                 <h5 className="text-slate-600 dark:text-slate-200 font-semibold mb-2">Editor</h5>
@@ -580,20 +568,6 @@ export default function App() {
                   </select>
                 </div>
 
-                {/* --- General --- */}
-                <h5 className="text-slate-600 dark:text-slate-200 font-semibold mb-2">General</h5>
-                <div className="mb-3 flex gap-2">
-                  <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
-                    Reset to defaults
-                  </button>
-                  <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
-                    Export settings
-                  </button>
-                  <button className="flex-1 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md text-white text-xs">
-                    Import settings
-                  </button>
-                </div>
-
                 <div className="flex justify-end">
                   <button
                     onClick={() => setShowSettings(false)}
@@ -610,16 +584,15 @@ export default function App() {
           <div className="relative">
             <button
               onClick={handleHelpClick}
-              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition"
+              className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 py-2 rounded-lg transition font-semibold"
             >
               <HelpCircle size={16} /> Help
             </button>
             {showMainHelp && (
-              <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20 p-4 text-sm font-sans">
-                <h4 className="font-bold text-slate-100 mb-2 border-b border-slate-600 pb-1">
+<div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl z-20 p-4 text-sm font-sans">                <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-gray-200 dark:border-slate-600 pb-1">
                   Netlist Simulator – Help Guide
                 </h4>
-                <p className="text-slate-300 mb-3">
+                <p className="text-slate-700 dark:text-slate-300 mb-3">
                   This tool lets you design and simulate simple digital circuits
                   using a text-based <span className="text-emerald-400 font-mono">netlist</span> format.
                   You can describe your circuit with inputs, outputs, signals,
@@ -627,26 +600,26 @@ export default function App() {
                   to view signal waveforms.
                 </p>
 
-                <h5 className="text-slate-200 font-semibold mb-1">How to use:</h5>
-                <ul className="list-disc list-inside space-y-1 text-slate-300 mb-3">
+                <h5 className="text-slate-700 dark:text-slate-200 font-semibold mb-1">How to use:</h5>
+                <ul className="list-disc list-inside space-y-1 text-slate-700 dark:text-slate-300 mb-3">
                   <li>
-                    <code className="bg-slate-700 px-1 rounded font-mono">CIRCUIT name</code> – Start by naming your circuit.
+                    <code className="bg-slate-700 text-white px-1 rounded font-mono">CIRCUIT name</code> – Start by naming your circuit.
                   </li>
                   <li>
-                    <code className="bg-slate-700 px-1 rounded font-mono">INPUT / OUTPUT</code> – Declare external pins.
+                    <code className="bg-slate-700 text-white px-1 rounded font-mono">INPUT / OUTPUT</code> – Declare external pins.
                   </li>
                   <li>
-                    <code className="bg-slate-700 px-1 rounded font-mono">SIGNAL</code> – Create internal wires.
+                    <code className="bg-slate-700 text-white px-1 rounded font-mono">SIGNAL</code> – Create internal wires.
                   </li>
                   <li>
-                    <code className="bg-slate-700 px-1 rounded font-mono">GATE</code> – Define gates 
+                    <code className="bg-slate-700 text-white px-1 rounded font-mono">GATE</code> – Define gates 
                     (<span className="text-emerald-400">AND, OR, NOT, NAND, NOR, XOR, XNOR</span>).
                   </li>
                   <li>
-                    <code className="bg-slate-700 px-1 rounded font-mono">CLOCK</code> – Add a clock with period & duty cycle.
+                    <code className="bg-slate-700 text-white px-1 rounded font-mono">CLOCK</code> – Add a clock with period & duty cycle.
                   </li>
                   <li>
-                    <code className="bg-slate-700 px-1 rounded font-mono">DFF</code> – Add flip-flops for sequential logic.
+                    <code className="bg-slate-700 text-white px-1 rounded font-mono">DFF</code> – Add flip-flops for sequential logic.
                   </li>
                   <li>
                     Type your circuit in the editor, then click 
@@ -654,14 +627,14 @@ export default function App() {
                   </li>
                 </ul>
 
-                <h5 className="text-slate-200 font-semibold mb-1">Tips:</h5>
-                <ul className="list-disc list-inside space-y-1 text-slate-300 mb-3">
-                  <li>Comments start with <code className="bg-slate-700 px-1 rounded font-mono">--</code>.</li>
+                <h5 className="text-slate-700 dark:text-slate-200 font-semibold mb-1">Tips:</h5>
+                <ul className="list-disc list-inside space-y-1 text-slate-700 dark:text-slate-300 mb-3">
+                  <li>Comments start with <code className="bg-slate-700 text-white px-1 rounded font-mono">--</code>.</li>
                   <li>Signal names are case-sensitive.</li>
                   <li>Use the <span className="text-emerald-400">Templates</span> menu to quickly load example circuits.</li>
                 </ul>
 
-                <p className="text-xs text-slate-500 border-t border-slate-700 pt-2">
+                <p className="text-xs text-slate-500 border-t border-gray-200 dark:border-slate-700 pt-2">
                   © All rights reserved – Elad Zats
                 </p>
               </div>
@@ -671,18 +644,18 @@ export default function App() {
       </div>
 
       {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left panel: Netlist Editor (now thinner) */}
-        <div className="w-2/5 p-4 flex flex-col">
-          <div className="flex-1 flex flex-col bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl shadow-lg border border-slate-300 dark:border-slate-700">
+      <div className="flex flex-1 overflow-hidden gap-6 p-6">
+        {/* Left panel: Netlist Editor */}
+        <div className="w-2/5 flex flex-col">
+          <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-semibold text-slate-500 dark:text-slate-300">
+              <label className="text-base font-semibold text-gray-600 dark:text-gray-200">
                 Netlist Editor
               </label>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleCopy}
-                  className="text-slate-400 hover:text-white transition text-xs flex items-center gap-1"
+                  className="text-gray-400 hover:text-emerald-500 transition text-xs flex items-center gap-1"
                 >
                   <Copy size={14} />
                   {copied ? "Copied!" : "Copy"}
@@ -697,25 +670,25 @@ export default function App() {
                     <HelpCircle size={16} />
                   </button>
                   {showHelp && (
-                    <div className="absolute right-0 top-full mt-2 w-96 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20 p-4 text-sm font-sans">
-                      <h4 className="font-bold text-slate-100 mb-2 border-b border-slate-600 pb-1">
+                    <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl z-20 p-4 text-sm font-sans">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-gray-200 dark:border-slate-600 pb-1">
                         Netlist Syntax Guide
                       </h4>
-                      <ul className="space-y-2 list-disc list-inside text-slate-300">
+                      <ul className="space-y-2 list-disc list-inside text-slate-700 dark:text-slate-300">
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">CIRCUIT name</code>: Declares the circuit. Must be the first command.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">CIRCUIT name</code>: Declares the circuit. Must be the first command.
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">INPUT a b ...</code>: Declares one or more input signals.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">INPUT a b ...</code>: Declares one or more input signals.
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">OUTPUT y ...</code>: Declares one or more output signals.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">OUTPUT y ...</code>: Declares one or more output signals.
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">SIGNAL s ...</code>: Declares one or more internal signals (wires).
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">SIGNAL s ...</code>: Declares one or more internal signals (wires).
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">GATE g_name type in1 [in2] out</code>: Defines a logic gate.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">GATE g_name type in1 [in2] out</code>: Defines a logic gate.
                           <ul className="pl-6 mt-1 text-xs text-slate-400 font-mono">
                             <li>`type` can be  NAND, NOR, XOR, XNOR, AND, OR, NOT .`</li>
                             <li>NOT gates have 1 input; others have 2.</li>
@@ -723,17 +696,17 @@ export default function App() {
                           </ul>
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">DFF dff_name D clk Q</code>: Defines a D-type flip-flop.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">DFF dff_name D clk Q</code>: Defines a D-type flip-flop.
                           <ul className="pl-6 mt-1 text-xs text-slate-400 font-mono">
                             <li>`D` is data in, `clk` is the clock, `Q` is the output.</li>
                             <li>Example: `DFF my_dff d_in clk q_out`</li>
                           </ul>
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">CLOCK clk PERIOD 4 DUTY 0.5</code>: Defines a clock signal.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">CLOCK clk PERIOD 4 DUTY 0.5</code>: Defines a clock signal.
                         </li>
                         <li>
-                          <code className="bg-slate-700 px-1 rounded font-mono">-- comment</code>: Lines starting with '--' are ignored.
+                          <code className="bg-slate-700 text-white px-1 rounded font-mono">-- comment</code>: Lines starting with '--' are ignored.
                         </li>
                       </ul>
                     </div>
@@ -741,7 +714,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="editor-container flex-1 bg-white dark:bg-slate-950 font-mono rounded-lg border border-slate-300 dark:border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
+            <div className="editor-container flex-1 bg-gray-100 dark:bg-slate-950 font-mono rounded-lg border border-gray-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
               <NetlistEditor
                 value={netlist}
                 onChange={handleNetlistChange}
@@ -781,20 +754,20 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right panel: Inputs + Waveform (now wider) */}
-        <div className="w-3/5 p-4 flex flex-col space-y-4">
-          {/* Inputs editor (aligned at the top, full width) */}
-          <div className="bg-slate-800/50 p-4 rounded-xl shadow-lg overflow-y-auto border border-slate-700 mb-4">
-            <div className="flex justify-between items-center mb-3 border-b border-slate-700 pb-3">
-              <label className="text-sm font-semibold text-slate-300">
+        {/* Right panel: Inputs + Waveform */}
+        <div className="w-3/5 flex flex-col gap-6">
+          {/* Inputs editor */}
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700 pb-3">
+              <label className="text-base font-semibold text-gray-600 dark:text-gray-200">
                 Inputs
               </label>
               <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs text-slate-400">Input Period:</span>
+                <span className="text-xs text-gray-400 dark:text-gray-400">Input Period:</span>
                 <input
                   type="number"
                   min="1"
-                  className="w-16 px-2 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm"
+                  className="w-16 px-2 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm"
                   value={inputPeriod}
                   onChange={(e) => setInputPeriod(Math.max(1, parseInt(e.target.value, 10) || 1))}
                 />
@@ -802,14 +775,14 @@ export default function App() {
             </div>
             {definedInputs.length > 0 ? (
               <div className="max-h-44 overflow-y-auto">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   {definedInputs.map((inpName) => (
                     <div key={inpName} className="flex items-center gap-3 font-mono">
-                      <span className="w-12 text-slate-300">{inpName}:</span>
+                      <span className="w-12 text-gray-700 dark:text-gray-300">{inpName}:</span>
                       <input
                         type="text"
                         placeholder="e.g. 0101"
-                        className="flex-1 px-3 py-1 bg-slate-900 border border-slate-600 rounded-md text-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition"
+                        className="flex-1 px-3 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
                         value={inputsMap[inpName] || ''}
                         onChange={(e) => handleInputChange(inpName, e.target.value)}
                       />
@@ -818,15 +791,15 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <p className="text-slate-500 italic text-sm">
+              <p className="text-gray-400 italic text-sm">
                 Define inputs like 'INPUT a' in the editor.
               </p>
             )}
           </div>
 
-          {/* Waveform viewer (fills remaining space) */}
-          <div className="flex-1 flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 overflow-hidden">
-            <h2 className="text-lg font-semibold mb-4 text-gray-300">Waveform</h2>
+          {/* Waveform viewer */}
+          <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden">
+            <h2 className="text-lg font-semibold mb-4 text-gray-600 dark:text-gray-200">Waveform</h2>
             <div className="flex-1 overflow-auto">
               {loading && <p>Simulating...</p>}
               {error && <p className="text-red-400">Error: {error.message}</p>}

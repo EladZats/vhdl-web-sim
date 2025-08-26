@@ -12,6 +12,11 @@
 
 /* --- Set a uniform gray background for the Netlist Editor --- */
 .cm-editor {
-  background-color: #1f2937 !important; /* This is the same color as bg-gray-800 */
+  background-color: #f3f4f6 !important; /* Tailwind's bg-gray-100 */
+}
+
+/* Dark theme: dark background */
+.dark .cm-editor {
+  background-color: #0f172a !important; /* Tailwind's bg-slate-950 */
 }
 
