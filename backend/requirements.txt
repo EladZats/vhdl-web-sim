@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+jinja2
+python-multipart
+# If you use simulation or parsing:
+numpy
+# For CORS if you call from frontend
+fastapi[all]
+# For running asgi apps
+httpx
+# For static file serving (if needed)
+aiofiles
