@@ -11,3 +11,4 @@ fastapi[all]
 httpx
 # For static file serving (if needed)
 aiofiles
+starlette
