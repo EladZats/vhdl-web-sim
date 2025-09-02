@@ -2,6 +2,9 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Play, Settings, HelpCircle, Library, AlertTriangle, Dices, Copy } from "lucide-react";
 import NetlistEditor from './NetlistEditor';
 import WaveformViewer from './WaveformViewer';
+import GraphEditor from "./circuit-ui/GraphEditor";
+import Palette from "./circuit-ui/Palette"; // <-- Import the new Palette
+import { graphToNetlist } from "./circuit-ui/graphToNetlist";
 import { highlight, languages } from "prismjs/components/prism-core";
 import "prismjs/themes/prism-tomorrow.css";
 import getCaretCoordinates from "textarea-caret";
@@ -106,24 +109,16 @@ const getSuggestions = (line, word, declaredSignals) => {
 
 
 // --- Custom Syntax Highlighting & Autocompletion ---
-
-// 1. Define all keywords in lowercase for the highlighter
 const customKeywords = { ...vhdl.keywords, dff: true };
-
-// 2. Create a new language object that forces case-insensitivity
 const customVHDL = {
   ...vhdl,
   keywords: customKeywords,
-  ignoreCase: true, // Explicitly tell the highlighter to ignore case
+  ignoreCase: true,
 };
-
-// 3. Define the list of words for autocompletion (can be uppercase for readability)
 const completionKeywords = [
   "CIRCUIT", "INPUT", "OUTPUT", "SIGNAL", "GATE", "CLOCK", "DFF",
    "PERIOD", "DUTY", "NAND", "NOR", "XNOR" , "AND", "OR", "NOT", "XOR"
 ].map(label => ({ label, type: "keyword" }));
-
-// 4. Create a custom completion source function
 const myCompletions = (context) => {
   let word = context.matchBefore(/\w*/);
   if (word.from == word.to && !context.explicit) {
@@ -135,112 +130,7 @@ const myCompletions = (context) => {
   };
 };
 
-
-// --- Catalog of Netlist Templates ---
-const TEMPLATES = [
-  {
-    label: "Basic AND Gate",
-    value: `CIRCUIT and_gate
-INPUT a
-INPUT b
-OUTPUT y
-GATE g1 AND a b y
-`,
-  },
-  {
-    label: "Basic OR Gate",
-    value: `CIRCUIT or_gate
-INPUT a
-INPUT b
-OUTPUT y
-GATE g1 OR a b y
-`,
-  },
-  {
-    label: "NOT Gate",
-    value: `CIRCUIT not_gate
-INPUT a
-OUTPUT y
-GATE g1 NOT a y
-`,
-  },
-  {
-    label: "NAND Gate",
-    value: `CIRCUIT nand_gate
-INPUT a
-INPUT b
-OUTPUT y
-GATE g1 NAND a b y
-`,
-  },
-  {
-    label: "NOR Gate",
-    value: `CIRCUIT nor_gate
-INPUT a
-INPUT b
-OUTPUT y
-GATE g1 NOR a b y
-`,
-  },
-  {
-    label: "XOR Gate",
-    value: `CIRCUIT xor_gate
-INPUT a
-INPUT b
-OUTPUT y
-GATE g1 XOR a b y
-`,
-  },
-  {
-    label: "XNOR Gate",
-    value: `CIRCUIT xnor_gate
-INPUT a
-INPUT b
-OUTPUT y
-GATE g1 XNOR a b y
-`,
-  },
-  {
-    label: "D Flip-Flop",
-    value: `CIRCUIT dff_circuit
-INPUT d
-INPUT clk
-OUTPUT q
-DFF dff1 D dff_clk q
-CLOCK clk PERIOD 10 DUTY 50
-`,
-  },
-  {
-    label: "Clock Signal",
-    value: `CIRCUIT clock_circuit
-OUTPUT clk
-CLOCK clk PERIOD 10 DUTY 50
-`,
-  },
-];
-
-// --- Custom Highlighter Plugin ---
-const keywordMap = {
-  "CIRCUIT": "keyword-circuit",
-  "INPUT": "keyword-io",
-  "OUTPUT": "keyword-io",
-  "SIGNAL": "keyword-signal",
-  "CLOCK": "keyword-clock",
-  "GATE": "keyword-component",
-  "DFF": "keyword-component", // <-- THIS IS THE FIX. It now has the same style as GATE.
-  "AND": "keyword-operator",
-  "OR": "keyword-operator",
-  "NOT": "keyword-operator",
-  "XOR": "keyword-operator",
-  "PERIOD": "keyword-parameter",
-  "DUTY": "keyword-parameter",
-  "NAND": "keyword-operator",
-  "NOR": "keyword-operator",
-  "XNOR": "keyword-operator"
-};
-
 export default function App() {
-  // Add these state declarations at the top
   const [netlist, setNetlist] = useState(
     "CIRCUIT DEMO\nINPUT a\nINPUT b\nOUTPUT y\nSIGNAL s1\nCLOCK clk PERIOD 4 DUTY 0.5\nGATE g1 AND a b s1\nGATE g2 NOT s1 y"
   );
@@ -251,35 +141,38 @@ export default function App() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [parseErrors, setParseErrors] = useState([]);
-  const [inputPeriod, setInputPeriod] = useState(1); // State for the input period
-  const [validationError, setValidationError] = useState(null); // New state for validation error
-
-  // --- State for Auto-Suggestions ---
+  const [inputPeriod, setInputPeriod] = useState(1);
+  const [validationError, setValidationError] = useState(null);
   const editorRef = useRef(null);
   const [suggestions, setSuggestions] = useState([]);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [suggestionPos, setSuggestionPos] = useState({ top: 0, left: 0 });
-
-  // State to control help guide visibility
   const [showHelp, setShowHelp] = useState(false);
-  
-  // State for the main help guide in the top bar
   const [showMainHelp, setShowMainHelp] = useState(false);
-
-  // State for the settings panel
   const [showSettings, setShowSettings] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-
-  // --- NEW: State for Settings ---
   const [showGrid, setShowGrid] = useState(true);
   const [compressedView, setCompressedView] = useState(false);
   const [stepWidth, setStepWidth] = useState(40);
   const [editorFontSize, setEditorFontSize] = useState(14);
   const [autocompleteEnabled, setAutocompleteEnabled] = useState(true);
   const [editorTheme, setEditorTheme] = useState('dark');
+  const [mode, setMode] = useState("text");
+  const [graphNodes, setGraphNodes] = useState([
+    { id: "in1", type: "input", position: { x: 50, y: 50 }, data: { label: "a" } },
+    { id: "in2", type: "input", position: { x: 50, y: 150 }, data: { label: "b" } },
+    { id: "g1", type: "andGate", position: { x: 250, y: 100 }, data: { label: "AND" } },
+    { id: "out1", type: "output", position: { x: 450, y: 100 }, data: { label: "y" } },
+  ]);
+  const [graphEdges, setGraphEdges] = useState([
+    // Connect source "in1" to the "a" handle of target "g1"
+    { id: "e1-g1", source: "in1", target: "g1", targetHandle: "a" },
+    // Connect source "in2" to the "b" handle of target "g1"
+    { id: "e2-g1", source: "in2", target: "g1", targetHandle: "b" },
+    // This edge doesn't need a handle ID because the source (g1) only has one source handle
+    { id: "e3-out1", source: "g1", target: "out1" },
+  ]);
 
-
-  // --- Handlers to ensure only one panel is open at a time ---
   const handleTemplatesClick = () => {
     setShowSettings(false);
     setShowMainHelp(false);
@@ -298,12 +191,9 @@ export default function App() {
     setShowMainHelp(prev => !prev);
   };
 
-  // Run validator whenever netlist changes
   useEffect(() => {
     const errors = validateNetlist(netlist);
     setParseErrors(errors);
-
-    // Set validation error state (new logic)
     if (errors.length > 0) {
       setValidationError(errors[0]);
     } else {
@@ -311,15 +201,15 @@ export default function App() {
     }
   }, [netlist]);
 
-  // Parse the netlist in real-time to find input definitions, preserving case
   const definedInputs = useMemo(() => {
-    return netlist
+    const currentNetlist = mode === 'graph' ? graphToNetlist(graphNodes, graphEdges) : netlist;
+    return currentNetlist
       .split("\n")
-      .map((line) => line.trim()) // Trim whitespace
-      .filter((line) => line.toUpperCase().startsWith("INPUT ")) // Check for 'INPUT' case-insensitively
-      .map((line) => line.split(/\s+/)[1]) // Extract the name with its original case
-      .filter(Boolean); // remove any empty results
-  }, [netlist]);
+      .map((line) => line.trim())
+      .filter((line) => line.toUpperCase().startsWith("INPUT "))
+      .map((line) => line.split(/\s+/)[1])
+      .filter(Boolean);
+  }, [netlist, graphNodes, graphEdges, mode]);
 
   const declaredSignals = useMemo(() => {
     const signals = new Set();
@@ -382,76 +272,34 @@ export default function App() {
     }
   };
 
-  // Update the handleInputChange function
   const handleInputChange = (signal, value) => {
-    // Clean input to only allow 0s and 1s
     const cleanValue = value.replace(/[^01]/g, '');
-    
-    // Store the original input value
-    setInputsMap(prev => ({
-      ...prev,
-      [signal]: cleanValue  // Store original input without padding
-    }));
-
-    // When sending to simulation, expand based on period
-    const getExpandedValue = (value) => {
-      return value
-        .split('')
-        .map(bit => bit.repeat(inputPeriod))
-        .join('');
-    };
-
-    // Log for debugging
-    console.log(`Input ${signal}:`, {
-      original: cleanValue,
-      period: inputPeriod,
-      expanded: getExpandedValue(cleanValue)
-    });
+    setInputsMap(prev => ({ ...prev, [signal]: cleanValue }));
   };
 
-  // Update the handleRun function
   const handleRun = async () => {
     setLoading(true);
     setError(null);
-
-    // Expand all input values according to period before sending
     const expandedInputs = Object.fromEntries(
       Object.entries(inputsMap).map(([signal, value]) => [
         signal,
         value.split('').map(bit => bit.repeat(inputPeriod)).join('').padEnd(steps, '0')
       ])
     );
-
-    const requestBody = {
-      netlist: netlist.trim(),
-      steps: Number(steps),
-      inputs: expandedInputs
-    };
-
-    console.log('DEBUG - Sending inputs:', expandedInputs);
+    const netlistToSend = mode === "graph" ? graphToNetlist(graphNodes, graphEdges) : netlist.trim();
+    const requestBody = { netlist: netlistToSend, steps: Number(steps), inputs: expandedInputs };
 
     try {
-      // UPDATED: Use API_URL instead of hardcoded localhost
       const res = await fetch(`${API_URL}/simulate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-
       const data = await res.json();
-      console.log('Received data from server:', JSON.stringify(data, null, 2));
-
-      if (!res.ok) {
-        const errorDetail = data.detail || `HTTP error! status: ${res.status}`;
-        throw new Error(errorDetail);
-      }
-
-      if (!data || !data.waveforms || Object.keys(data.waveforms).length === 0) {
-        throw new Error('No waveform data received');
-      }
+      if (!res.ok) throw new Error(data.detail || `HTTP error! status: ${res.status}`);
+      if (!data || !data.waveforms || Object.keys(data.waveforms).length === 0) throw new Error('No waveform data received');
       setWaveforms(data.waveforms);
     } catch (error) {
-      console.error('DEBUG - Error:', error);
       setError({ message: error.message });
     } finally {
       setLoading(false);
@@ -464,29 +312,48 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Add this function inside the App component before the return statement
   const handleTemplateSelect = (template) => {
-    // Add a newline if the current netlist doesn't end with one
     const separator = netlist.endsWith('\n') ? '' : '\n';
     setNetlist(netlist + separator + template.value);
   };
 
-  // --- NEW: Effect to handle theme changes ---
   useEffect(() => {
-    if (editorTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", editorTheme === "dark");
   }, [editorTheme]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-mono transition-colors duration-300">
       {/* Top bar */}
       <div className="bg-white dark:bg-gradient-to-r dark:from-gray-800 dark:to-gray-700 p-4 flex items-center justify-between shadow-md border-b border-gray-200 dark:border-transparent">
-        <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
-          Netlist Simulator
-        </h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
+            Netlist Simulator
+          </h1>
+          {/* Toggle Mode Button - half green, half dark gray */}
+          <div className="ml-4 flex rounded-full border-2 border-emerald-600 overflow-hidden">
+            <button
+              className={`px-3 py-1 font-semibold transition focus:outline-none
+                ${mode === "text"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}
+              `}
+              style={{ borderRight: "1px solid #059669" }}
+              onClick={() => setMode("text")}
+            >
+              Text
+            </button>
+            <button
+              className={`px-3 py-1 font-semibold transition focus:outline-none
+                ${mode === "graph"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}
+              `}
+              onClick={() => setMode("graph")}
+            >
+              Graph
+            </button>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           {/* Templates Button */}
           <div className="relative">
@@ -641,176 +508,118 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content area */}
       <div className="flex flex-1 overflow-hidden gap-6 p-6">
-        {/* Left panel: Netlist Editor */}
-        <div className="w-2/5 flex flex-col">
-          <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-base font-semibold text-gray-600 dark:text-gray-200">
-                Netlist Editor
-              </label>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleCopy}
-                  className="text-gray-400 hover:text-emerald-500 transition text-xs flex items-center gap-1"
-                >
-                  <Copy size={14} />
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-                {/* THIS HELP ICON IS UNCHANGED */}
-                <div
-                  className="relative"
-                  onMouseEnter={() => setShowHelp(true)}
-                  onMouseLeave={() => setShowHelp(false)}
-                >
-                  <button className="text-slate-400 hover:text-white transition">
-                    <HelpCircle size={16} />
-                  </button>
-                  {showHelp && (
-                    <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-xl z-20 p-4 text-sm font-sans">
-                      <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-gray-200 dark:border-slate-600 pb-1">
-                        Netlist Syntax Guide
-                      </h4>
-                      <ul className="space-y-2 list-disc list-inside text-slate-700 dark:text-slate-300">
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">CIRCUIT name</code>: Declares the circuit. Must be the first command.
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">INPUT a b ...</code>: Declares one or more input signals.
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">OUTPUT y ...</code>: Declares one or more output signals.
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">SIGNAL s ...</code>: Declares one or more internal signals (wires).
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">GATE g_name type in1 [in2] out</code>: Defines a logic gate.
-                          <ul className="pl-6 mt-1 text-xs text-slate-400 font-mono">
-                            <li>`type` can be  NAND, NOR, XOR, XNOR, AND, OR, NOT .`</li>
-                            <li>NOT gates have 1 input; others have 2.</li>
-                            <li>Example: `GATE g1 AND a b y`</li>
-                          </ul>
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">DFF dff_name D clk Q</code>: Defines a D-type flip-flop.
-                          <ul className="pl-6 mt-1 text-xs text-slate-400 font-mono">
-                            <li>`D` is data in, `clk` is the clock, `Q` is the output.</li>
-                            <li>Example: `DFF my_dff d_in clk q_out`</li>
-                          </ul>
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">CLOCK clk PERIOD 4 DUTY 0.5</code>: Defines a clock signal.
-                        </li>
-                        <li>
-                          <code className="bg-slate-700 text-white px-1 rounded font-mono">-- comment</code>: Lines starting with '--' are ignored.
-                        </li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="editor-container flex-1 bg-gray-100 dark:bg-slate-950 font-mono rounded-lg border border-gray-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
-              <NetlistEditor
-                value={netlist}
-                onChange={handleNetlistChange}
-                fontSize={editorFontSize}
-                autocomplete={autocompleteEnabled}
-                completions={myCompletions}
-                theme={editorTheme}
-              />
-            </div>
-            {suggestions.length > 0 && (
-              <div
-                className="absolute z-10 bg-slate-700 border border-slate-600 rounded-md shadow-lg"
-                style={{ top: suggestionPos.top, left: suggestionPos.left }}
-              >
-                <ul className="text-sm text-slate-200">
-                  {suggestions.map((s, i) => (
-                    <li
-                      key={s}
-                      className={`px-3 py-1 cursor-pointer ${i === activeSuggestion ? "bg-emerald-600" : "hover:bg-slate-600"}`}
-                    >
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {parseErrors.length > 0 && (
-              <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded-md text-sm">
-                {parseErrors.map((error, i) => (
-                  <div key={i} className="flex items-center gap-2 text-red-400">
-                    <AlertTriangle size={14} />
-                    <span>Line {error.lineno}: {error.message}</span>
+        {mode === 'text' ? (
+          <>
+            {/* Left panel: Editor */}
+            <div className="w-2/5 flex flex-col">
+              <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-base font-semibold text-gray-600 dark:text-gray-200">Netlist Editor</label>
+                  <div className="flex items-center gap-3">
+                    <button onClick={handleCopy} className="text-gray-400 hover:text-emerald-500 transition text-xs flex items-center gap-1">
+                      <Copy size={14} /> {copied ? "Copied!" : "Copy"}
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right panel: Inputs + Waveform */}
-        <div className="w-3/5 flex flex-col gap-6">
-          {/* Inputs editor */}
-          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700 pb-3">
-              <label className="text-base font-semibold text-gray-600 dark:text-gray-200">
-                Inputs
-              </label>
-              <div className="flex items-center gap-2 font-mono">
-                <span className="text-xs text-gray-400 dark:text-gray-400">Input Period:</span>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-16 px-2 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm"
-                  value={inputPeriod}
-                  onChange={(e) => setInputPeriod(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                />
+                </div>
+                <div className="editor-container flex-1 bg-gray-100 dark:bg-slate-950 font-mono rounded-lg border border-gray-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
+                  <NetlistEditor value={netlist} onChange={handleNetlistChange} fontSize={editorFontSize} autocomplete={autocompleteEnabled} completions={myCompletions} theme={editorTheme} />
+                </div>
+                {parseErrors.length > 0 && (
+                  <div className="mt-2 p-2 bg-red-900/30 border border-red-700 rounded-md text-sm">
+                    {parseErrors.map((error, i) => (
+                      <div key={i} className="flex items-center gap-2 text-red-400">
+                        <AlertTriangle size={14} /> <span>Line {error.lineno}: {error.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-            {definedInputs.length > 0 ? (
-              <div className="max-h-44 overflow-y-auto">
-                <div className="grid grid-cols-2 gap-4">
-                  {definedInputs.map((inpName) => (
-                    <div key={inpName} className="flex items-center gap-3 font-mono">
-                      <span className="w-12 text-gray-700 dark:text-gray-300">{inpName}:</span>
-                      <input
-                        type="text"
-                        placeholder="e.g. 0101"
-                        className="flex-1 px-3 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
-                        value={inputsMap[inpName] || ''}
-                        onChange={(e) => handleInputChange(inpName, e.target.value)}
-                      />
+            {/* Right panel: Inputs + Waveform */}
+            <div className="w-3/5 flex flex-col gap-6">
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
+                <div className="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700 pb-3">
+                  <label className="text-base font-semibold text-gray-600 dark:text-gray-200">Inputs</label>
+                  <div className="flex items-center gap-2 font-mono">
+                    <span className="text-xs text-gray-400 dark:text-gray-400">Input Period:</span>
+                    <input type="number" min="1" className="w-16 px-2 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm" value={inputPeriod} onChange={(e) => setInputPeriod(Math.max(1, parseInt(e.target.value, 10) || 1))} />
+                  </div>
+                </div>
+                {definedInputs.length > 0 ? (
+                  <div className="max-h-44 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-4">
+                      {definedInputs.map((inpName) => (
+                        <div key={inpName} className="flex items-center gap-3 font-mono">
+                          <span className="w-12 text-gray-700 dark:text-gray-300">{inpName}:</span>
+                          <input type="text" placeholder="e.g. 0101" className="flex-1 px-3 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" value={inputsMap[inpName] || ''} onChange={(e) => handleInputChange(inpName, e.target.value)} />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 italic text-sm">
+                    Define inputs in the editor or graph.
+                  </p>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden">
+                <h2 className="text-lg font-semibold mb-4 text-gray-600 dark:text-gray-200">Waveform</h2>
+                <div className="flex-1 overflow-auto">
+                  {loading && <p>Simulating...</p>}
+                  {error && <p className="text-red-400">Error: {error.message}</p>}
+                  {waveforms && <WaveformViewer waveforms={waveforms} steps={steps} stepWidth={stepWidth} showGrid={showGrid} compressed={compressedView} />}
                 </div>
               </div>
-            ) : (
-              <p className="text-gray-400 italic text-sm">
-                Define inputs like 'INPUT a' in the editor.
-              </p>
-            )}
-          </div>
-
-          {/* Waveform viewer */}
-          <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden">
-            <h2 className="text-lg font-semibold mb-4 text-gray-600 dark:text-gray-200">Waveform</h2>
-            <div className="flex-1 overflow-auto">
-              {loading && <p>Simulating...</p>}
-              {error && <p className="text-red-400">Error: {error.message}</p>}
-              {waveforms && <WaveformViewer 
-                waveforms={waveforms} 
-                steps={steps}
-                stepWidth={stepWidth}
-                showGrid={showGrid}
-                compressed={compressedView}
-              />}
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            {/* Left panel: Palette */}
+            <Palette />
+            {/* Center panel: Graph Editor */}
+            <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
+              <GraphEditor nodes={graphNodes} setNodes={setGraphNodes} edges={graphEdges} setEdges={setGraphEdges} />
+            </div>
+            {/* Right panel: Inputs + Waveform */}
+            <div className="w-2/5 flex flex-col gap-6">
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
+                <div className="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-slate-700 pb-3">
+                  <label className="text-base font-semibold text-gray-600 dark:text-gray-200">Inputs</label>
+                  <div className="flex items-center gap-2 font-mono">
+                    <span className="text-xs text-gray-400 dark:text-gray-400">Input Period:</span>
+                    <input type="number" min="1" className="w-16 px-2 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm" value={inputPeriod} onChange={(e) => setInputPeriod(Math.max(1, parseInt(e.target.value, 10) || 1))} />
+                  </div>
+                </div>
+                {definedInputs.length > 0 ? (
+                  <div className="max-h-44 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-4">
+                      {definedInputs.map((inpName) => (
+                        <div key={inpName} className="flex items-center gap-3 font-mono">
+                          <span className="w-12 text-gray-700 dark:text-gray-300">{inpName}:</span>
+                          <input type="text" placeholder="e.g. 0101" className="flex-1 px-3 py-1 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md text-emerald-700 dark:text-amber-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" value={inputsMap[inpName] || ''} onChange={(e) => handleInputChange(inpName, e.target.value)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 italic text-sm">
+                    Define inputs in the editor or graph.
+                  </p>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden">
+                <h2 className="text-lg font-semibold mb-4 text-gray-600 dark:text-gray-200">Waveform</h2>
+                <div className="flex-1 overflow-auto">
+                  {loading && <p>Simulating...</p>}
+                  {error && <p className="text-red-400">Error: {error.message}</p>}
+                  {waveforms && <WaveformViewer waveforms={waveforms} steps={steps} stepWidth={stepWidth} showGrid={showGrid} compressed={compressedView} />}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
