@@ -5,6 +5,7 @@ import WaveformViewer from './WaveformViewer';
 import GraphEditor from "./circuit-ui/GraphEditor";
 import Palette from "./circuit-ui/Palette";
 import { graphToNetlist } from "./circuit-ui/graphToNetlist";
+import { netlistToGraph } from "./circuit-ui/netlistToGraph"; // <-- Import the new function
 import { highlight, languages } from "prismjs/components/prism-core";
 import "prismjs/themes/prism-tomorrow.css";
 import getCaretCoordinates from "textarea-caret";
@@ -158,6 +159,8 @@ export default function App() {
   const [autocompleteEnabled, setAutocompleteEnabled] = useState(true);
   const [editorTheme, setEditorTheme] = useState('dark');
   const [mode, setMode] = useState("text");
+  const [showGraphHelp, setShowGraphHelp] = useState(false);
+  const [showSyntaxHelp, setShowSyntaxHelp] = useState(false); // New state for syntax guide
   const [graphNodes, setGraphNodes] = useState([
     { id: "in1", type: "input", position: { x: 50, y: 50 }, data: { label: "a" } },
     { id: "in2", type: "input", position: { x: 50, y: 150 }, data: { label: "b" } },
@@ -280,13 +283,26 @@ export default function App() {
   const handleRun = async () => {
     setLoading(true);
     setError(null);
+
+    let netlistToSend = netlist.trim();
+
+    // If in graph mode, generate the netlist from the graph first.
+    if (mode === "graph") {
+      const generatedNetlist = graphToNetlist(graphNodes, graphEdges);
+      setNetlist(generatedNetlist); // This updates the editor's content
+      netlistToSend = generatedNetlist; // Use this new netlist for the simulation
+    } else { // In text mode, update the graph from the netlist
+      const { nodes, edges } = netlistToGraph(netlistToSend);
+      setGraphNodes(nodes);
+      setGraphEdges(edges);
+    }
+
     const expandedInputs = Object.fromEntries(
       Object.entries(inputsMap).map(([signal, value]) => [
         signal,
         value.split('').map(bit => bit.repeat(inputPeriod)).join('').padEnd(steps, '0')
       ])
     );
-    const netlistToSend = mode === "graph" ? graphToNetlist(graphNodes, graphEdges) : netlist.trim();
     const requestBody = { netlist: netlistToSend, steps: Number(steps), inputs: expandedInputs };
 
     try {
@@ -313,13 +329,96 @@ export default function App() {
   };
 
   const handleTemplateSelect = (template) => {
-    const separator = netlist.endsWith('\n') ? '' : '\n';
-    setNetlist(netlist + separator + template.value);
+    const newNetlist = template.value;
+    // Always update the netlist state for consistency between views
+    setNetlist(newNetlist);
+
+    // If in graph mode, also update the graph nodes and edges
+    if (mode === 'graph') {
+      const { nodes, edges } = netlistToGraph(newNetlist);
+      setGraphNodes(nodes);
+      setGraphEdges(edges);
+    }
   };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", editorTheme === "dark");
   }, [editorTheme]);
+
+  // --- Syntax Help Modal Component ---
+  const SyntaxHelpModal = () => (
+    <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={() => setShowSyntaxHelp(false)}>
+      <div className="bg-slate-800 p-6 rounded-lg shadow-xl border border-slate-600 max-w-2xl text-sm font-sans" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold mb-4 text-emerald-400">Netlist Syntax Guide</h3>
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div>
+            <h4 className="font-semibold text-slate-200">Comments</h4>
+            <p className="text-slate-300">Lines starting with <code className="bg-slate-700 text-white px-1 rounded font-mono">--</code> are ignored.</p>
+            <pre className="bg-slate-900 p-2 rounded-md mt-1 text-xs"><code className="text-gray-400">-- This is a comment</code></pre>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-200">Circuit Declaration</h4>
+            <p className="text-slate-300">Every netlist must begin by declaring the circuit name.</p>
+            <pre className="bg-slate-900 p-2 rounded-md mt-1 text-xs"><code className="text-white">CIRCUIT my_circuit_name</code></pre>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-200">Signal Declarations</h4>
+            <p className="text-slate-300">Declare all input, output, and internal signals. You can declare multiple signals on one line or on separate lines.</p>
+            <pre className="bg-slate-900 p-2 rounded-md mt-1 text-xs">
+              <code className="text-white">INPUT a b<br/></code>
+              <code className="text-white">OUTPUT sum<br/></code>
+              <code className="text-white">OUTPUT carry<br/></code>
+              <code className="text-white">SIGNAL internal_wire1</code>
+            </pre>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-200">Gate Instantiation</h4>
+            <p className="text-slate-300">Format: <code className="bg-slate-700 text-white px-1 rounded font-mono">GATE gate_name gate_type input1 [input2] output</code></p>
+            <ul className="list-disc list-inside text-slate-300 mt-1">
+              <li>2-input gates: <code className="text-emerald-400">AND, OR, XOR, NAND, NOR, XNOR</code></li>
+              <li>1-input gate: <code className="text-emerald-400">NOT</code></li>
+            </ul>
+            <pre className="bg-slate-900 p-2 rounded-md mt-2 text-xs">
+              <code className="text-white">GATE g1 AND in1 in2 wire1<br/></code>
+              <code className="text-white">GATE g2 NOT wire1 out1</code>
+            </pre>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-200">Clock</h4>
+            <p className="text-slate-300">Format: <code className="bg-slate-700 text-white px-1 rounded font-mono">CLOCK clock_name PERIOD value DUTY value</code></p>
+            <pre className="bg-slate-900 p-2 rounded-md mt-1 text-xs"><code className="text-white">CLOCK clk PERIOD 10ns DUTY 0.5</code></pre>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-200">D-Type Flip-Flop (DFF)</h4>
+            <p className="text-slate-300">Format: <code className="bg-slate-700 text-white px-1 rounded font-mono">DFF dff_name D_input CLK_input Q_output</code></p>
+            <pre className="bg-slate-900 p-2 rounded-md mt-1 text-xs"><code className="text-white">DFF my_dff data_in clk q_out</code></pre>
+          </div>
+        </div>
+        <button onClick={() => setShowSyntaxHelp(false)} className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+
+  // --- Graph Help Modal Component ---
+  const GraphHelpModal = () => (
+    <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={() => setShowGraphHelp(false)}>
+      <div className="bg-slate-800 p-6 rounded-lg shadow-xl border border-slate-600 max-w-md text-sm font-sans" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold mb-4 text-emerald-400">Graph Editor Guide</h3>
+        <ul className="space-y-3 list-disc list-inside">
+          <li><span className="font-semibold">Add Components:</span> Drag items from the component palette below onto the canvas.</li>
+          <li><span className="font-semibold">Connect Wires:</span> Click and drag from the small circles (handles) on a component to another to create a wire.</li>
+          <li><span className="font-semibold">Delete:</span> Select a component or wire by clicking it, then press the <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Delete</kbd> key.</li>
+          <li><span className="font-semibold">Edit Labels:</span> Double-click an <span className="text-green-400">Input</span> or <span className="text-pink-400">Output</span> node to change its name.</li>
+          <li><span className="font-semibold">Edit Clocks:</span> Double-click a <span className="text-yellow-400">Clock</span> node to edit its properties (name, period, duty cycle).</li>
+        </ul>
+        <button onClick={() => setShowGraphHelp(false)} className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition">
+          Close
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-mono transition-colors duration-300">
@@ -521,6 +620,9 @@ export default function App() {
                     <button onClick={handleCopy} className="text-gray-400 hover:text-emerald-500 transition text-xs flex items-center gap-1">
                       <Copy size={14} /> {copied ? "Copied!" : "Copy"}
                     </button>
+                    <button onClick={() => setShowSyntaxHelp(true)} className="text-gray-400 hover:text-emerald-500 transition" title="Syntax Guide">
+                      <HelpCircle size={18} />
+                    </button>
                   </div>
                 </div>
                 <div className="editor-container flex-1 bg-gray-100 dark:bg-slate-950 font-mono rounded-lg border border-gray-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-emerald-500 overflow-hidden text-sm mt-3">
@@ -576,11 +678,20 @@ export default function App() {
           </>
         ) : (
           <>
-            {/* NEW: Center container for Graph + Palette */}
+            {/* Center container for Graph + Palette */}
             <div className="flex-1 flex flex-col gap-6">
               {/* Graph Editor (takes up remaining space) */}
-              <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 min-h-0">
-                <GraphEditor nodes={graphNodes} setNodes={setGraphNodes} edges={graphEdges} setEdges={setGraphEdges} />
+              <div className="relative flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 min-h-0">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-base font-semibold text-gray-600 dark:text-gray-200">Graph Editor</label>
+                  <button onClick={() => setShowGraphHelp(true)} className="text-gray-400 hover:text-emerald-500 transition" title="Help">
+                    <HelpCircle size={18} />
+                  </button>
+                </div>
+                <div className="flex-1 rounded-lg overflow-hidden mt-3">
+                  <GraphEditor nodes={graphNodes} setNodes={setGraphNodes} edges={graphEdges} setEdges={setGraphEdges} />
+                </div>
+                {showGraphHelp && <GraphHelpModal />}
               </div>
               {/* Palette at the bottom */}
               <Palette />
@@ -625,6 +736,7 @@ export default function App() {
           </>
         )}
       </div>
+      {showSyntaxHelp && <SyntaxHelpModal />}
     </div>
   );
 }

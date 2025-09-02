@@ -60,24 +60,6 @@ GATE nand4 NAND q_int qn_int q
 GATE not1 NOT q qn`
   },
   {
-    label: "D Flip-Flop",
-    value: `CIRCUIT d_flipflop
-INPUT d
-OUTPUT q
-OUTPUT qn
-SIGNAL clk
-CLOCK clk PERIOD 4 DUTY 0.5
--- Classic DFF using NAND/NOR gates
-SIGNAL nclk
-GATE not1 NOT clk nclk
-SIGNAL s, r, nq, nq2
-GATE nand1 NAND d nclk s
-GATE nand2 NAND s nq q
-GATE nand3 NAND q clk nq
-GATE nand4 NAND nq d nq2
-GATE nor1 NOR q qn qn`
-  },
-  {
     label: "2-to-1 Multiplexer",
     value: `CIRCUIT mux_2to1
 INPUT a
@@ -100,62 +82,5 @@ GATE not3 NOT nand2_out s2
 SIGNAL nor_out
 GATE nor1 NOR s1 s2 nor_out
 GATE not4 NOT nor_out y`
-  },
-  {
-    label: "SR Latch",
-    value: `CIRCUIT sr_latch
-INPUT s
-INPUT r
-OUTPUT q
-OUTPUT qn
--- Classic cross-coupled NOR latch
-GATE nor1 NOR s qn q
-GATE nor2 NOR r q qn`
-  },
-  {
-    label: "4-bit Register",
-    value: `CIRCUIT register_4bit
-INPUT d0
-INPUT d1
-INPUT d2
-INPUT d3
-OUTPUT q0
-OUTPUT q1
-OUTPUT q2
-OUTPUT q3
-SIGNAL clk
-CLOCK clk PERIOD 4 DUTY 0.5
-
--- Four D latches implemented with NAND gates
-SIGNAL nclk
-GATE not1 NOT clk nclk
-
--- Bit 0
-SIGNAL s0, r0
-GATE nand1 NAND d0 nclk s0
-GATE nand2 NAND s0 qn0 q0
-GATE nand3 NAND nclk q0 r0
-GATE nand4 NAND r0 d0 qn0
-
--- Bit 1
-SIGNAL s1, r1
-GATE nand5 NAND d1 nclk s1
-GATE nand6 NAND s1 qn1 q1
-GATE nand7 NAND nclk q1 r1
-GATE nand8 NAND r1 d1 qn1
-
--- Bit 2
-SIGNAL s2, r2
-GATE nand9 NAND d2 nclk s2
-GATE nand10 NAND s2 qn2 q2
-GATE nand11 NAND nclk q2 r2
-GATE nand12 NAND r2 d2 qn2
-
--- Bit 3
-SIGNAL s3, r3
-GATE nand13 NAND d3 nclk s3
-GATE nand14 NAND s3 qn3 q3
-GATE nand15 NAND nclk q3 r3
-GATE nand16 NAND r3 d3 qn3`
   }
 ];

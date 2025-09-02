@@ -1,36 +1,97 @@
 export function graphToNetlist(nodes, edges, circuitName = "my_circuit") {
-  let lines = [];
+  const lines = [];
   lines.push(`CIRCUIT ${circuitName}`);
 
-  // Inputs
-  nodes.filter(n => n.type === "input").forEach(n => {
+  const signalMap = new Map();
+  const internalSignals = new Set();
+  let gateCounter = 1;
+  let dffCounter = 1;
+  let wireCounter = 1;
+
+  // Separate nodes into their specific types
+  const inputs = nodes.filter(n => n.type === 'input');
+  const outputs = nodes.filter(n => n.type === 'output');
+  const clocks = nodes.filter(n => n.type === 'clock');
+  const dffs = nodes.filter(n => n.type === 'default' && n.data.label?.toUpperCase() === 'DFF');
+  const gates = nodes.filter(n => (n.type === 'andGate' || n.type === 'default') && n.data.label?.toUpperCase() !== 'DFF');
+
+  // 1. Declare each CLOCK on a new line.
+  clocks.forEach(n => {
+    const { label = 'CLK', period = '10ns', dutyCycle = 0.5 } = n.data;
+    signalMap.set(n.id, label);
+    lines.push(`CLOCK ${label} ${period} ${dutyCycle}`);
+  });
+
+  // 2. Declare each INPUT signal on a new line.
+  inputs.forEach(n => {
+    signalMap.set(n.id, n.data.label);
     lines.push(`INPUT ${n.data.label}`);
   });
 
-  // Outputs
-  nodes.filter(n => n.type === "output").forEach(n => {
+  // 3. Declare each OUTPUT signal on a new line.
+  outputs.forEach(n => {
     lines.push(`OUTPUT ${n.data.label}`);
   });
 
-  // Gates
-  nodes.filter(n => n.type === "default").forEach(n => {
-    if (n.data.label === "NOT") {
-      const inputEdge = edges.find(e => e.target === n.id);
-      const outputEdge = edges.find(e => e.source === n.id);
-      if (inputEdge && outputEdge) {
-        const inNode = nodes.find(nd => nd.id === inputEdge.source);
-        const outNode = nodes.find(nd => nd.id === outputEdge.target);
-        lines.push(`GATE ${n.id} NOT ${inNode.data.label} ${outNode.data.label}`);
+  // 4. Identify and map all gate and DFF outputs to determine internal signals.
+  const componentsWithOutput = [...gates, ...dffs];
+  componentsWithOutput.forEach(componentNode => {
+    const outputEdge = edges.find(e => e.source === componentNode.id);
+    let outputSignalName;
+
+    if (outputEdge) {
+      const targetNode = nodes.find(n => n.id === outputEdge.target);
+      if (targetNode && targetNode.type === 'output') {
+        outputSignalName = targetNode.data.label;
       }
-    } else {
-      const inputEdges = edges.filter(e => e.target === n.id);
-      const outputEdge = edges.find(e => e.source === n.id);
-      if (inputEdges.length === 2 && outputEdge) {
-        const in1 = nodes.find(nd => nd.id === inputEdges[0].source);
-        const in2 = nodes.find(nd => nd.id === inputEdges[1].source);
-        const outNode = nodes.find(nd => nd.id === outputEdge.target);
-        lines.push(`GATE ${n.id} ${n.data.label} ${in1.data.label} ${in2.data.label} ${outNode.data.label}`);
-      }
+    }
+
+    if (!outputSignalName) {
+      outputSignalName = `w${wireCounter++}`;
+      internalSignals.add(outputSignalName);
+    }
+    signalMap.set(componentNode.id, outputSignalName);
+  });
+
+  // 5. Declare each identified internal SIGNAL on a new line.
+  if (internalSignals.size > 0) {
+    internalSignals.forEach(signalName => {
+      lines.push(`SIGNAL ${signalName}`);
+    });
+  }
+  
+  lines.push(''); // Add a blank line for readability.
+
+  // 6. Define all the GATE connections.
+  gates.forEach(gateNode => {
+    const gateId = `g${gateCounter++}`;
+    const gateType = gateNode.data.label.toUpperCase();
+    const outputSignalName = signalMap.get(gateNode.id);
+
+    const inputEdges = edges.filter(e => e.target === gateNode.id);
+    const inputSignalNames = inputEdges
+      .sort((a, b) => (a.targetHandle < b.targetHandle ? -1 : 1))
+      .map(edge => signalMap.get(edge.source))
+      .filter(name => name);
+
+    if (outputSignalName && inputSignalNames.length > 0) {
+      lines.push(`GATE ${gateId} ${gateType} ${inputSignalNames.join(' ')} ${outputSignalName}`);
+    }
+  });
+
+  // 7. Define all the DFF connections.
+  dffs.forEach(dffNode => {
+    const dffId = `dff${dffCounter++}`;
+    const qOutput = signalMap.get(dffNode.id);
+    
+    const dInputEdge = edges.find(e => e.target === dffNode.id && e.targetHandle === 'a');
+    const clkInputEdge = edges.find(e => e.target === dffNode.id && e.targetHandle === 'b');
+
+    const dInput = dInputEdge ? signalMap.get(dInputEdge.source) : null;
+    const clkInput = clkInputEdge ? signalMap.get(clkInputEdge.source) : null;
+
+    if (dInput && clkInput && qOutput) {
+      lines.push(`DFF ${dffId} ${dInput} ${clkInput} ${qOutput}`);
     }
   });
 

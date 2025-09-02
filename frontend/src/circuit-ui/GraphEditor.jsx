@@ -7,7 +7,7 @@ import ReactFlow, {
   applyEdgeChanges,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { InputNode, OutputNode, AndGateNode, GenericGateNode } from './CustomNodes';
+import { InputNode, OutputNode, AndGateNode, GenericGateNode, ClockNode } from './CustomNodes'; // Import ClockNode
 import './CustomNodes.css';
 
 const nodeTypes = {
@@ -15,6 +15,7 @@ const nodeTypes = {
   output: OutputNode,
   andGate: AndGateNode,
   default: GenericGateNode,
+  clock: ClockNode, // <-- Register the new clock node type
 };
 
 const flowStyles = {

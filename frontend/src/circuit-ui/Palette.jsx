@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-// Separate items into logical groups
+// Item groups
 const mainItems = [
   { type: 'input', label: 'Input' },
   { type: 'output', label: 'Output' },
 ];
-
 const gateItems = [
-  { type: 'andGate', label: 'AND' },
-  { type: 'default', label: 'OR' },
-  { type: 'default', label: 'NOT' },
-  { type: 'default', label: 'XOR' },
-  { type: 'default', label: 'NAND' },
-  { type: 'default', label: 'NOR' },
+  { type: 'andGate', label: 'AND' }, { type: 'default', label: 'OR' },
+  { type: 'default', label: 'NOT' }, { type: 'default', label: 'XOR' },
+  { type: 'default', label: 'NAND' }, { type: 'default', label: 'NOR' },
   { type: 'default', label: 'XNOR' },
 ];
+const sequentialItems = [
+  { type: 'clock', label: 'Clock' },
+  { type: 'default', label: 'DFF' },
+];
 
-// A reusable component for the draggable item to keep the code clean
+// Reusable draggable item
 const DraggableItem = ({ item, onDragStart }) => (
   <div
     key={item.label}
@@ -28,52 +28,39 @@ const DraggableItem = ({ item, onDragStart }) => (
   </div>
 );
 
-export default function Palette() {
-  const [isGatesOpen, setIsGatesOpen] = useState(false); // State for dropdown
+// Simple vertical separator line
+const Separator = () => (
+    <div className="self-stretch w-px bg-slate-600"></div>
+);
 
+export default function Palette() {
   const onDragStart = (event, nodeType, nodeLabel) => {
-    // We store the node type and label to use it on drop
     const nodeInfo = JSON.stringify({ type: nodeType, label: nodeLabel });
     event.dataTransfer.setData('application/reactflow', nodeInfo);
     event.dataTransfer.effectAllowed = 'move';
   };
 
   return (
-    // Main container is now a horizontal bar
+    // Main container is a horizontal bar at the bottom
     <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
-      <div className="flex items-center space-x-4">
-        <h3 className="text-md font-semibold text-gray-700 dark:text-gray-200">Components:</h3>
-        
-        {/* Render Main Items directly */}
+      <div className="flex justify-center items-center flex-wrap gap-x-4 gap-y-2">
+
+        {/* Render all items in a flat list */}
         {mainItems.map((item) => (
           <DraggableItem key={item.label} item={item} onDragStart={onDragStart} />
         ))}
 
-        {/* Separator */}
-        <div className="h-8 w-px bg-slate-600"></div>
+        <Separator />
 
-        {/* Gates Dropdown Section (opens upwards) */}
-        <div className="relative">
-          <button
-            onClick={() => setIsGatesOpen(!isGatesOpen)}
-            className="flex items-center space-x-2 p-2 rounded-lg font-semibold text-gray-600 dark:text-gray-400 hover:bg-slate-700"
-          >
-            <span>Gates</span>
-            <svg
-              className={`w-4 h-4 transition-transform duration-200 ${isGatesOpen ? 'rotate-180' : ''}`}
-              fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path>
-            </svg>
-          </button>
-          {isGatesOpen && (
-            <div className="absolute bottom-full mb-2 flex flex-wrap gap-2 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-lg w-96">
-              {gateItems.map((item) => (
-                <DraggableItem key={item.label} item={item} onDragStart={onDragStart} />
-              ))}
-            </div>
-          )}
-        </div>
+        {gateItems.map((item) => (
+          <DraggableItem key={item.label} item={item} onDragStart={onDragStart} />
+        ))}
+
+        <Separator />
+
+        {sequentialItems.map((item) => (
+          <DraggableItem key={item.label} item={item} onDragStart={onDragStart} />
+        ))}
       </div>
     </div>
   );
