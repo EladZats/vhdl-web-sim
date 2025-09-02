@@ -2,7 +2,6 @@ import React, { useCallback, useState, useRef } from "react";
 import ReactFlow, {
   Background,
   Controls,
-  MiniMap,
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
@@ -89,16 +88,10 @@ export default function GraphEditor({ nodes, setNodes, edges, setEdges }) {
         fitView
         nodeTypes={nodeTypes}
         style={flowStyles}
+        deleteKeyCode={['Delete', 'Backspace']}
       >
         <Background variant="dots" gap={12} size={1} color="#4A5568" />
         <Controls />
-        <MiniMap nodeColor={(node) => {
-          switch (node.type) {
-            case 'input': return '#38A169';
-            case 'output': return '#D53F8C';
-            default: return '#5A67D8';
-          }
-        }} />
       </ReactFlow>
     </div>
   );

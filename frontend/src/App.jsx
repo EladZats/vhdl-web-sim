@@ -3,7 +3,7 @@ import { Play, Settings, HelpCircle, Library, AlertTriangle, Dices, Copy } from 
 import NetlistEditor from './NetlistEditor';
 import WaveformViewer from './WaveformViewer';
 import GraphEditor from "./circuit-ui/GraphEditor";
-import Palette from "./circuit-ui/Palette"; // <-- Import the new Palette
+import Palette from "./circuit-ui/Palette";
 import { graphToNetlist } from "./circuit-ui/graphToNetlist";
 import { highlight, languages } from "prismjs/components/prism-core";
 import "prismjs/themes/prism-tomorrow.css";
@@ -576,12 +576,16 @@ export default function App() {
           </>
         ) : (
           <>
-            {/* Left panel: Palette */}
-            <Palette />
-            {/* Center panel: Graph Editor */}
-            <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
-              <GraphEditor nodes={graphNodes} setNodes={setGraphNodes} edges={graphEdges} setEdges={setGraphEdges} />
+            {/* NEW: Center container for Graph + Palette */}
+            <div className="flex-1 flex flex-col gap-6">
+              {/* Graph Editor (takes up remaining space) */}
+              <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 min-h-0">
+                <GraphEditor nodes={graphNodes} setNodes={setGraphNodes} edges={graphEdges} setEdges={setGraphEdges} />
+              </div>
+              {/* Palette at the bottom */}
+              <Palette />
             </div>
+            
             {/* Right panel: Inputs + Waveform */}
             <div className="w-2/5 flex flex-col gap-6">
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
