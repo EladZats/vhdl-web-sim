@@ -158,23 +158,19 @@ export default function App() {
   const [editorFontSize, setEditorFontSize] = useState(14);
   const [autocompleteEnabled, setAutocompleteEnabled] = useState(true);
   const [editorTheme, setEditorTheme] = useState('dark');
-  const [mode, setMode] = useState("text");
+  const [mode, setMode] = useState("graph");
   const [showGraphHelp, setShowGraphHelp] = useState(false);
   const [showSyntaxHelp, setShowSyntaxHelp] = useState(false); // New state for syntax guide
-  const [graphNodes, setGraphNodes] = useState([
-    { id: "in1", type: "input", position: { x: 50, y: 50 }, data: { label: "a" } },
-    { id: "in2", type: "input", position: { x: 50, y: 150 }, data: { label: "b" } },
-    { id: "g1", type: "andGate", position: { x: 250, y: 100 }, data: { label: "AND" } },
-    { id: "out1", type: "output", position: { x: 450, y: 100 }, data: { label: "y" } },
-  ]);
-  const [graphEdges, setGraphEdges] = useState([
-    // Connect source "in1" to the "a" handle of target "g1"
-    { id: "e1-g1", source: "in1", target: "g1", targetHandle: "a" },
-    // Connect source "in2" to the "b" handle of target "g1"
-    { id: "e2-g1", source: "in2", target: "g1", targetHandle: "b" },
-    // This edge doesn't need a handle ID because the source (g1) only has one source handle
-    { id: "e3-out1", source: "g1", target: "out1" },
-  ]);
+  const [graphNodes, setGraphNodes] = useState([]);
+  const [graphEdges, setGraphEdges] = useState([]);
+
+  // Effect to initialize the graph from the default netlist on first load
+  useEffect(() => {
+    const { nodes, edges } = netlistToGraph(netlist);
+    setGraphNodes(nodes);
+    setGraphEdges(edges);
+  }, []);
+
 
   const handleTemplatesClick = () => {
     setShowSettings(false);
