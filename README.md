@@ -134,7 +134,7 @@ OUTPUT c
 GATE g1 XOR a b s
 GATE g2 AND a b c
 ```
-
+  
 ## Templates Available
 
 The application includes built-in templates for common circuits. You can load them from the "Templates" menu.
